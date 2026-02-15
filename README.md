@@ -1,0 +1,1 @@
+# VendorPlatformv1.0
