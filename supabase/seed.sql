@@ -1,0 +1,2 @@
+-- Seed data for vendor platform (run after migrations)
+-- Add initial data as needed

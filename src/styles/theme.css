@@ -1,0 +1,132 @@
+:root {
+  --font-size: 16px;
+  --background: #f8fafc;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  
+  /* Intellibus Primary - Soft Blue */
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  
+  /* Accent - Indigo/Purple */
+  --accent-indigo: #6366f1;
+  --accent-indigo-foreground: #ffffff;
+  
+  /* Status Colors - Softer palette */
+  --status-warning: #f59e0b;
+  --status-warning-foreground: #ffffff;
+  --status-error: #ef4444;
+  --status-error-foreground: #ffffff;
+  --status-success: #10b981;
+  --status-success-foreground: #ffffff;
+  --status-info: #3b82f6;
+  --status-info-foreground: #ffffff;
+  
+  /* Workflow Status Colors */
+  --status-draft: #94a3b8;
+  --status-under-review: #f59e0b;
+  --status-approved: #10b981;
+  --status-rejected: #ef4444;
+  --status-paid: #059669;
+  --status-outstanding: #dc2626;
+  --status-pending: #eab308;
+  
+  /* Neutral Grays - Lighter */
+  --neutral-50: #f9fafb;
+  --neutral-100: #f3f4f6;
+  --neutral-200: #e5e7eb;
+  --neutral-300: #d1d5db;
+  --neutral-400: #9ca3af;
+  --neutral-500: #6b7280;
+  --neutral-600: #4b5563;
+  --neutral-700: #374151;
+  --neutral-800: #1f2937;
+  --neutral-900: #111827;
+  
+  --secondary: #f0f4ff;
+  --secondary-foreground: #3b82f6;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #f0f4ff;
+  --accent-foreground: #3b82f6;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: #d1d5db;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 600;
+  /* HSL components only (no hsl() wrapper) so Tailwind can generate outline-ring/50, ring-ring/50 */
+  --ring: 213 93% 79%;
+  --chart-1: #3b82f6;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ef4444;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #374151;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f4ff;
+  --sidebar-accent-foreground: #3b82f6;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #93c5fd;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  /* HSL components only for Tailwind outline-ring/50, ring-ring/50 */
+  --ring: 0 0% 43.9%;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* Drawer slide-in animation */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}

@@ -1,0 +1,16 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { id } = req.query;
+  if (req.method === 'GET') {
+    return res.status(200).json({ id });
+  }
+  if (req.method === 'PATCH' || req.method === 'PUT') {
+    return res.status(200).json({ id });
+  }
+  if (req.method === 'DELETE') {
+    return res.status(204).end();
+  }
+  res.setHeader('Allow', ['GET', 'PATCH', 'PUT', 'DELETE']);
+  res.status(405).end();
+}
