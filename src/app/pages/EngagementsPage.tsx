@@ -1,164 +1,125 @@
 import { useState } from 'react';
-import Link from 'next/link';
-import { Plus, Edit, X, FileText, Briefcase, LayoutGrid, Table } from 'lucide-react';
+import {
+  Plus,
+  Edit,
+  X,
+  Briefcase,
+  LayoutGrid,
+  Table,
+  Loader2,
+} from 'lucide-react';
+import { useEngagements } from '@/lib/hooks/useEngagements';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface Engagement {
   id: string;
   title: string;
-  projectImpact: 'High' | 'Medium' | 'Low';
-  description: string;
-  status: 'Open' | 'In Progress' | 'Closed';
-  createdAt: string;
+  description: string | null;
+  status: string;
+  department: string | null;
+  budget: number | null;
+  created_at: string;
+  created_by: string;
 }
 
 type ViewMode = 'cards' | 'table';
 
+// ─── Component ──────────────────────────────────────────────────────────────
+
 export function EngagementsPage() {
+  const {
+    engagements,
+    isLoading,
+    error: fetchError,
+    refetch,
+    createEngagement,
+  } = useEngagements();
+
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [engagements, setEngagements] = useState<Engagement[]>([
-    {
-      id: 'ENG-0001',
-      title: 'Cloud Infrastructure Modernization',
-      projectImpact: 'High',
-      description: 'Migrate legacy on-premise infrastructure to cloud-based architecture. Requires evaluation of AWS, Azure, and GCP capabilities for enterprise workloads.',
-      status: 'Open',
-      createdAt: '2025-02-10T10:30:00Z',
-    },
-    {
-      id: 'ENG-0002',
-      title: 'HR Management System Upgrade',
-      projectImpact: 'Medium',
-      description: 'Replace existing HR platform with modern HRIS solution. Must support employee onboarding, payroll integration, and performance management workflows.',
-      status: 'Open',
-      createdAt: '2025-02-12T14:15:00Z',
-    },
-    {
-      id: 'ENG-0003',
-      title: 'Office Supplies Procurement',
-      projectImpact: 'Low',
-      description: 'Establish vendor relationship for quarterly office supplies including stationery, pantry items, and cleaning materials for 3 office locations.',
-      status: 'Open',
-      createdAt: '2025-02-13T09:45:00Z',
-    },
-    {
-      id: 'ENG-0004',
-      title: 'Cybersecurity Assessment & Remediation',
-      projectImpact: 'High',
-      description: 'Conduct comprehensive security audit of IT infrastructure and implement recommended security controls. Includes penetration testing and vulnerability management.',
-      status: 'Open',
-      createdAt: '2025-02-14T11:20:00Z',
-    },
-    {
-      id: 'ENG-0005',
-      title: 'Marketing Automation Platform',
-      projectImpact: 'Medium',
-      description: 'Source marketing automation tool to streamline email campaigns, lead nurturing, and customer engagement analytics. Must integrate with existing CRM.',
-      status: 'Open',
-      createdAt: '2025-02-15T08:00:00Z',
-    },
-    {
-      id: 'ENG-0006',
-      title: 'Legal Contract Management System',
-      projectImpact: 'Medium',
-      description: 'Implement contract lifecycle management software with AI-powered clause analysis, automated renewals, and compliance tracking capabilities.',
-      status: 'Open',
-      createdAt: '2025-02-15T16:30:00Z',
-    },
-  ]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentEngagement, setCurrentEngagement] = useState<Engagement | null>(null);
-  
+  const [currentEngagement, setCurrentEngagement] = useState<Engagement | null>(
+    null
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
-    projectImpact: 'Medium' as 'High' | 'Medium' | 'Low',
     description: '',
+    department: '',
+    budget: '',
   });
 
-  // Generate auto-incrementing ID
-  const generateEngagementId = () => {
-    const nextNum = engagements.length + 1;
-    return `ENG-${nextNum.toString().padStart(4, '0')}`;
-  };
+  // ── Modal handlers ─────────────────────────────────────────────────────
 
-  // Open create modal
   const openCreateModal = () => {
     setIsEditMode(false);
-    setFormData({
-      title: '',
-      projectImpact: 'Medium',
-      description: '',
-    });
+    setCurrentEngagement(null);
+    setSubmitError(null);
+    setFormData({ title: '', description: '', department: '', budget: '' });
     setIsModalOpen(true);
   };
 
-  // Open edit modal
   const openEditModal = (engagement: Engagement, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     setIsEditMode(true);
     setCurrentEngagement(engagement);
+    setSubmitError(null);
     setFormData({
       title: engagement.title,
-      projectImpact: engagement.projectImpact,
-      description: engagement.description,
+      description: engagement.description ?? '',
+      department: engagement.department ?? '',
+      budget: engagement.budget != null ? String(engagement.budget) : '',
     });
     setIsModalOpen(true);
   };
 
-  // Close modal
   const closeModal = () => {
+    if (isSubmitting) return;
     setIsModalOpen(false);
     setCurrentEngagement(null);
-    setFormData({
-      title: '',
-      projectImpact: 'Medium',
-      description: '',
-    });
+    setSubmitError(null);
+    setFormData({ title: '', description: '', department: '', budget: '' });
   };
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    setIsSubmitting(true);
 
-    if (isEditMode && currentEngagement) {
-      // Update existing engagement
-      setEngagements(prev => prev.map(eng => 
-        eng.id === currentEngagement.id 
-          ? { ...eng, ...formData }
-          : eng
-      ));
-    } else {
-      // Create new engagement
-      const newEngagement: Engagement = {
-        id: generateEngagementId(),
-        ...formData,
-        status: 'Open',
-        createdAt: new Date().toISOString(),
-      };
-      setEngagements(prev => [...prev, newEngagement]);
-    }
-
-    closeModal();
-  };
-
-  // Impact badge styling
-  const getImpactBadgeClass = (impact: string) => {
-    switch (impact) {
-      case 'High':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'Medium':
-        return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'Low':
-        return 'bg-green-100 text-green-700 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+    try {
+      await createEngagement({
+        title: formData.title.trim(),
+        description: formData.description.trim() || undefined,
+        department: formData.department.trim() || undefined,
+        budget: formData.budget ? Number(formData.budget) : undefined,
+        status: 'Draft',
+      });
+      closeModal();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to create engagement.';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Status badge styling
+  // ── Style helpers ──────────────────────────────────────────────────────
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
+      case 'Draft':
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'Under Review':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'Approved':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'Rejected':
+        return 'bg-red-100 text-red-700 border-red-200';
       case 'Open':
         return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'In Progress':
@@ -170,21 +131,6 @@ export function EngagementsPage() {
     }
   };
 
-  // Get accent bar color
-  const getAccentBarColor = (impact: string) => {
-    switch (impact) {
-      case 'High':
-        return 'bg-red-500';
-      case 'Medium':
-        return 'bg-orange-500';
-      case 'Low':
-        return 'bg-green-500';
-      default:
-        return 'bg-gray-300';
-    }
-  };
-
-  // Format date
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', {
@@ -194,10 +140,11 @@ export function EngagementsPage() {
     });
   };
 
-  // Handle card click
   const handleCardClick = (engagementId: string) => {
     alert(`Viewing engagement ${engagementId}`);
   };
+
+  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -210,7 +157,7 @@ export function EngagementsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle - Segmented Control */}
+          {/* View Mode Toggle */}
           <div className="inline-flex items-center bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('cards')}
@@ -235,7 +182,7 @@ export function EngagementsPage() {
               <span className="hidden sm:inline">Table</span>
             </button>
           </div>
-          
+
           <button
             onClick={openCreateModal}
             className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm"
@@ -246,9 +193,31 @@ export function EngagementsPage() {
         </div>
       </div>
 
-      {/* Engagements Cards */}
-      {engagements.length === 0 ? (
-        // Empty State (same for both views)
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <p className="text-sm text-gray-500">Loading engagements…</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {!isLoading && fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{fetchError}</p>
+          <button
+            onClick={refetch}
+            className="mt-2 text-sm font-semibold text-red-700 underline hover:text-red-800"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !fetchError && engagements.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
           <div className="max-w-md mx-auto text-center">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -269,7 +238,10 @@ export function EngagementsPage() {
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Content */}
+      {!isLoading && !fetchError && engagements.length > 0 && (
         <>
           {/* Card View */}
           {viewMode === 'cards' && (
@@ -280,15 +252,12 @@ export function EngagementsPage() {
                   onClick={() => handleCardClick(engagement.id)}
                   className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
                 >
-                  {/* Accent Bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${getAccentBarColor(engagement.projectImpact)}`} />
-
                   {/* Card Content */}
-                  <div className="p-6 pl-8">
+                  <div className="p-6">
                     {/* Top Section - ID & Status */}
                     <div className="flex items-start justify-between mb-4">
                       <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">
-                        {engagement.id}
+                        {engagement.id.substring(0, 8)}
                       </span>
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
@@ -299,45 +268,36 @@ export function EngagementsPage() {
                       </span>
                     </div>
 
-                    {/* Title Section */}
+                    {/* Title */}
                     <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 min-h-[3.5rem]">
                       {engagement.title}
                     </h3>
 
-                    {/* Project Impact Badge */}
-                    <div className="mb-4">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getImpactBadgeClass(
-                          engagement.projectImpact
-                        )}`}
-                      >
-                        {engagement.projectImpact} Impact
-                      </span>
-                    </div>
+                    {/* Department */}
+                    {engagement.department && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        {engagement.department}
+                      </p>
+                    )}
 
                     {/* Description */}
                     <p
                       className="text-sm text-gray-600 line-clamp-3 mb-6 min-h-[4.5rem]"
-                      title={engagement.description}
+                      title={engagement.description ?? ''}
                     >
-                      {engagement.description}
+                      {engagement.description || 'No description provided.'}
                     </p>
 
-                    {/* Bottom Section - Divider Above */}
+                    {/* Bottom Section */}
                     <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
                       <span className="text-xs text-gray-500">
-                        Created {formatDate(engagement.createdAt)}
+                        Created {formatDate(engagement.created_at)}
                       </span>
-
-                      {/* Action Icons */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCardClick(engagement.id);
-                          }}
+                          onClick={(e) => openEditModal(engagement, e)}
                           className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="View"
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -357,13 +317,10 @@ export function EngagementsPage() {
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Engagement ID
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Title
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Project Impact
+                        Department
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Description
@@ -372,43 +329,37 @@ export function EngagementsPage() {
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Budget
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Created Date
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {engagements.map((engagement) => (
-                      <tr 
-                        key={engagement.id} 
+                      <tr
+                        key={engagement.id}
                         onClick={() => handleCardClick(engagement.id)}
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">
-                            {engagement.id}
-                          </span>
-                        </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-gray-900">
+                          <span className="text-sm font-medium text-gray-900">
                             {engagement.title}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getImpactBadgeClass(
-                              engagement.projectImpact
-                            )}`}
-                          >
-                            {engagement.projectImpact} Impact
+                          <span className="text-sm text-gray-600">
+                            {engagement.department || '—'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="max-w-md">
                             <p
                               className="text-sm text-gray-600 line-clamp-2 cursor-help"
-                              title={engagement.description}
+                              title={engagement.description ?? ''}
                             >
-                              {engagement.description}
+                              {engagement.description || '—'}
                             </p>
                           </div>
                         </td>
@@ -422,8 +373,15 @@ export function EngagementsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-gray-600">
+                            {engagement.budget != null
+                              ? `$${engagement.budget.toLocaleString()}`
+                              : '—'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-xs text-gray-500">
-                            {formatDate(engagement.createdAt)}
+                            {formatDate(engagement.created_at)}
                           </span>
                         </td>
                       </tr>
@@ -433,6 +391,12 @@ export function EngagementsPage() {
               </div>
             </div>
           )}
+
+          {/* Results Count */}
+          <div className="text-sm text-gray-600">
+            Showing <span className="font-medium">{engagements.length}</span>{' '}
+            engagement{engagements.length !== 1 ? 's' : ''}
+          </div>
         </>
       )}
 
@@ -447,7 +411,8 @@ export function EngagementsPage() {
               </h2>
               <button
                 onClick={closeModal}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={isSubmitting}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -455,20 +420,6 @@ export function EngagementsPage() {
 
             {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Engagement ID */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Engagement ID
-                </label>
-                <input
-                  type="text"
-                  value={isEditMode ? currentEngagement?.id : generateEngagementId()}
-                  disabled
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 mt-1">Auto-generated incremental ID</p>
-              </div>
-
               {/* Title */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -477,46 +428,66 @@ export function EngagementsPage() {
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   placeholder="Enter engagement title"
                   required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                 />
               </div>
 
-              {/* Project Impact */}
+              {/* Department */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Project Impact <span className="text-red-500">*</span>
+                  Department
                 </label>
-                <div className="flex items-center gap-4">
-                  <select
-                    value={formData.projectImpact}
-                    onChange={(e) => setFormData({ ...formData, projectImpact: e.target.value as 'High' | 'Medium' | 'Low' })}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                  </select>
-                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${getImpactBadgeClass(formData.projectImpact)}`}>
-                    {formData.projectImpact}
-                  </span>
-                </div>
+                <input
+                  type="text"
+                  value={formData.department}
+                  onChange={(e) =>
+                    setFormData({ ...formData, department: e.target.value })
+                  }
+                  placeholder="e.g. Engineering, Marketing"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                />
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Budget
+                </label>
+                <input
+                  type="number"
+                  value={formData.budget}
+                  onChange={(e) =>
+                    setFormData({ ...formData, budget: e.target.value })
+                  }
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                />
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description <span className="text-red-500">*</span>
+                  Description
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Describe the scope and objective of this engagement..."
-                  required
                   rows={5}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none disabled:opacity-50"
                 />
               </div>
 
@@ -528,11 +499,20 @@ export function EngagementsPage() {
                   </label>
                   <input
                     type="text"
-                    value="Open"
+                    value="Draft"
                     disabled
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Default status for new engagements</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Default status for new engagements
+                  </p>
+                </div>
+              )}
+
+              {/* Error */}
+              {submitError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <p className="text-sm text-red-700">{submitError}</p>
                 </div>
               )}
 
@@ -541,15 +521,22 @@ export function EngagementsPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm"
+                  disabled={isSubmitting || !formData.title.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isEditMode ? 'Save Changes' : 'Create Engagement'}
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSubmitting
+                    ? 'Creating…'
+                    : isEditMode
+                      ? 'Save Changes'
+                      : 'Create Engagement'}
                 </button>
               </div>
             </form>
