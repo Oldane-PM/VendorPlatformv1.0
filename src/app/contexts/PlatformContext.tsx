@@ -2,19 +2,31 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 /**
  * PlatformContext - Unified Data Context for Enterprise Vendor Management Platform
- * 
+ *
  * This context manages all platform data including:
  * - Vendor relationships and profiles
  * - Engagements with full lifecycle tracking
  * - RFQs, Documents, Approvals, Invoices
  * - Activity logs and audit trails
- * 
+ *
  * Note: VendorContext has been deprecated and merged into PlatformContext
  * All components should use usePlatform() hook instead of useVendors()
  */
 
-export type EngagementStatus = 'draft' | 'under-review' | 'approved' | 'rejected' | 'active' | 'completed';
-export type InvoiceStatus = 'submitted' | 'approved' | 'scheduled' | 'paid' | 'outstanding' | 'overdue';
+export type EngagementStatus =
+  | 'draft'
+  | 'under-review'
+  | 'approved'
+  | 'rejected'
+  | 'active'
+  | 'completed';
+export type InvoiceStatus =
+  | 'submitted'
+  | 'approved'
+  | 'scheduled'
+  | 'paid'
+  | 'outstanding'
+  | 'overdue';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'returned';
 
 export interface RFQ {
@@ -134,13 +146,25 @@ interface PlatformContextType {
   deleteEngagement: (id: string) => void;
   getEngagement: (id: string) => Engagement | undefined;
   addRFQToEngagement: (engagementId: string, rfq: Omit<RFQ, 'id'>) => void;
-  addDocumentToEngagement: (engagementId: string, document: Omit<Document, 'id'>) => void;
-  updateApprovalStep: (engagementId: string, stepId: string, update: Partial<ApprovalStep>) => void;
-  addActivityLog: (engagementId: string, entry: Omit<ActivityLogEntry, 'id'>) => void;
+  addDocumentToEngagement: (
+    engagementId: string,
+    document: Omit<Document, 'id'>
+  ) => void;
+  updateApprovalStep: (
+    engagementId: string,
+    stepId: string,
+    update: Partial<ApprovalStep>
+  ) => void;
+  addActivityLog: (
+    engagementId: string,
+    entry: Omit<ActivityLogEntry, 'id'>
+  ) => void;
   getVendor: (id: string) => Vendor | undefined;
 }
 
-const PlatformContext = createContext<PlatformContextType | undefined>(undefined);
+const PlatformContext = createContext<PlatformContextType | undefined>(
+  undefined
+);
 
 const mockVendors: Vendor[] = [
   {
@@ -226,7 +250,8 @@ const mockEngagements: Engagement[] = [
     createdDate: '2026-01-15',
     lastUpdated: '2026-02-10',
     assignedApprover: 'Jennifer Martinez',
-    description: 'Purchase of new manufacturing equipment for production line expansion',
+    description:
+      'Purchase of new manufacturing equipment for production line expansion',
     rfqs: [
       {
         id: 'rfq-001-1',
@@ -234,8 +259,18 @@ const mockEngagements: Engagement[] = [
         vendorId: 'v1',
         vendorName: 'Acme Corporation',
         lineItems: [
-          { description: 'CNC Machine Model X200', quantity: 2, unitPrice: 75000, total: 150000 },
-          { description: 'Installation & Training', quantity: 1, unitPrice: 15000, total: 15000 },
+          {
+            description: 'CNC Machine Model X200',
+            quantity: 2,
+            unitPrice: 75000,
+            total: 150000,
+          },
+          {
+            description: 'Installation & Training',
+            quantity: 1,
+            unitPrice: 15000,
+            total: 15000,
+          },
         ],
         subtotal: 165000,
         taxes: 13200,
@@ -253,7 +288,8 @@ const mockEngagements: Engagement[] = [
         size: 2458000,
         uploadedDate: '2026-01-16',
         uploadedBy: 'David Park',
-        aiSummary: 'Technical specifications for CNC machines including dimensions, power requirements, and capabilities.',
+        aiSummary:
+          'Technical specifications for CNC machines including dimensions, power requirements, and capabilities.',
         missingFields: [],
         riskFlags: [],
       },
@@ -304,7 +340,8 @@ const mockEngagements: Engagement[] = [
     createdDate: '2025-12-10',
     lastUpdated: '2026-01-25',
     assignedApprover: 'Robert Chang',
-    description: 'Cloud infrastructure migration and setup for enterprise applications',
+    description:
+      'Cloud infrastructure migration and setup for enterprise applications',
     rfqs: [
       {
         id: 'rfq-002-1',
@@ -312,9 +349,24 @@ const mockEngagements: Engagement[] = [
         vendorId: 'v2',
         vendorName: 'Global Tech Solutions',
         lineItems: [
-          { description: 'Cloud Infrastructure Setup', quantity: 1, unitPrice: 150000, total: 150000 },
-          { description: 'Migration Services', quantity: 1, unitPrice: 100000, total: 100000 },
-          { description: '12-Month Support Package', quantity: 1, unitPrice: 50000, total: 50000 },
+          {
+            description: 'Cloud Infrastructure Setup',
+            quantity: 1,
+            unitPrice: 150000,
+            total: 150000,
+          },
+          {
+            description: 'Migration Services',
+            quantity: 1,
+            unitPrice: 100000,
+            total: 100000,
+          },
+          {
+            description: '12-Month Support Package',
+            quantity: 1,
+            unitPrice: 50000,
+            total: 50000,
+          },
         ],
         subtotal: 300000,
         taxes: 24000,
@@ -449,7 +501,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const [engagements, setEngagements] = useState<Engagement[]>(mockEngagements);
   const [vendors] = useState<Vendor[]>(mockVendors);
 
-  const addEngagement = (engagement: Omit<Engagement, 'id' | 'activityLog'>) => {
+  const addEngagement = (
+    engagement: Omit<Engagement, 'id' | 'activityLog'>
+  ) => {
     const newEngagement: Engagement = {
       ...engagement,
       id: `eng-${Date.now()}`,
@@ -466,10 +520,19 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setEngagements((prev) => [newEngagement, ...prev]);
   };
 
-  const updateEngagement = (id: string, updatedEngagement: Partial<Engagement>) => {
+  const updateEngagement = (
+    id: string,
+    updatedEngagement: Partial<Engagement>
+  ) => {
     setEngagements((prev) =>
       prev.map((eng) =>
-        eng.id === id ? { ...eng, ...updatedEngagement, lastUpdated: new Date().toISOString().split('T')[0] } : eng
+        eng.id === id
+          ? {
+              ...eng,
+              ...updatedEngagement,
+              lastUpdated: new Date().toISOString().split('T')[0],
+            }
+          : eng
       )
     );
   };
@@ -495,20 +558,30 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const addDocumentToEngagement = (engagementId: string, document: Omit<Document, 'id'>) => {
+  const addDocumentToEngagement = (
+    engagementId: string,
+    document: Omit<Document, 'id'>
+  ) => {
     setEngagements((prev) =>
       prev.map((eng) =>
         eng.id === engagementId
           ? {
               ...eng,
-              documents: [...eng.documents, { ...document, id: `doc-${Date.now()}` }],
+              documents: [
+                ...eng.documents,
+                { ...document, id: `doc-${Date.now()}` },
+              ],
             }
           : eng
       )
     );
   };
 
-  const updateApprovalStep = (engagementId: string, stepId: string, update: Partial<ApprovalStep>) => {
+  const updateApprovalStep = (
+    engagementId: string,
+    stepId: string,
+    update: Partial<ApprovalStep>
+  ) => {
     setEngagements((prev) =>
       prev.map((eng) =>
         eng.id === engagementId
@@ -523,13 +596,19 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const addActivityLog = (engagementId: string, entry: Omit<ActivityLogEntry, 'id'>) => {
+  const addActivityLog = (
+    engagementId: string,
+    entry: Omit<ActivityLogEntry, 'id'>
+  ) => {
     setEngagements((prev) =>
       prev.map((eng) =>
         eng.id === engagementId
           ? {
               ...eng,
-              activityLog: [...eng.activityLog, { ...entry, id: `log-${Date.now()}` }],
+              activityLog: [
+                ...eng.activityLog,
+                { ...entry, id: `log-${Date.now()}` },
+              ],
             }
           : eng
       )
