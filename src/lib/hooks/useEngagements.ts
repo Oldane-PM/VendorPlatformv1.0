@@ -4,20 +4,22 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface Engagement {
   id: string;
+  org_id: string;
+  engagement_number: number;
   title: string;
   description: string | null;
   status: string;
-  department: string | null;
-  budget: number | null;
+  project_impact: string;
+  start_date: string | null;
+  end_date: string | null;
+  created_by: string | null;
   created_at: string;
-  created_by: string;
 }
 
 export interface CreateEngagementPayload {
   title: string;
   description?: string;
-  department?: string;
-  budget?: number;
+  project_impact?: string;
   status?: string;
 }
 
@@ -27,6 +29,10 @@ interface UseEngagementsReturn {
   error: string | null;
   refetch: () => Promise<void>;
   createEngagement: (payload: CreateEngagementPayload) => Promise<Engagement>;
+  updateEngagement: (
+    id: string,
+    payload: Partial<CreateEngagementPayload>
+  ) => Promise<Engagement>;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
@@ -89,5 +95,36 @@ export function useEngagements(): UseEngagementsReturn {
     [refetch]
   );
 
-  return { engagements, isLoading, error, refetch, createEngagement };
+  const updateEngagement = useCallback(
+    async (
+      id: string,
+      payload: Partial<CreateEngagementPayload>
+    ): Promise<Engagement> => {
+      const res = await fetch('/api/engagements', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...payload }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.error) {
+        throw new Error(json.error || 'Failed to update engagement.');
+      }
+
+      await refetch();
+
+      return json.data as Engagement;
+    },
+    [refetch]
+  );
+
+  return {
+    engagements,
+    isLoading,
+    error,
+    refetch,
+    createEngagement,
+    updateEngagement,
+  };
 }

@@ -7,21 +7,12 @@ import {
   LayoutGrid,
   Table,
   Loader2,
+  Calendar,
+  FileText,
 } from 'lucide-react';
-import { useEngagements } from '@/lib/hooks/useEngagements';
+import { useEngagements, type Engagement } from '@/lib/hooks/useEngagements';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-
-interface Engagement {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  department: string | null;
-  budget: number | null;
-  created_at: string;
-  created_by: string;
-}
 
 type ViewMode = 'cards' | 'table';
 
@@ -34,6 +25,7 @@ export function EngagementsPage() {
     error: fetchError,
     refetch,
     createEngagement,
+    updateEngagement,
   } = useEngagements();
 
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -45,12 +37,33 @@ export function EngagementsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedEngagement, setSelectedEngagement] =
+    useState<Engagement | null>(null);
+  const [isDrawerEditing, setIsDrawerEditing] = useState(false);
+  const [drawerFormData, setDrawerFormData] = useState({
+    title: '',
+    projectImpact: 'Medium' as 'High' | 'Medium' | 'Low',
+    description: '',
+  });
+  const [isDrawerSubmitting, setIsDrawerSubmitting] = useState(false);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
+
+  // Auto-incrementing ID
+  const generateEngagementId = () => {
+    const maxNum = engagements.reduce(
+      (max, e) => Math.max(max, e.engagement_number ?? 0),
+      0
+    );
+    return `ENG-${(maxNum + 1).toString().padStart(4, '0')}`;
+  };
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
+    projectImpact: 'Medium' as 'High' | 'Medium' | 'Low',
     description: '',
-    department: '',
-    budget: '',
   });
 
   // ── Modal handlers ─────────────────────────────────────────────────────
@@ -59,7 +72,11 @@ export function EngagementsPage() {
     setIsEditMode(false);
     setCurrentEngagement(null);
     setSubmitError(null);
-    setFormData({ title: '', description: '', department: '', budget: '' });
+    setFormData({
+      title: '',
+      projectImpact: 'Medium',
+      description: '',
+    });
     setIsModalOpen(true);
   };
 
@@ -70,9 +87,11 @@ export function EngagementsPage() {
     setSubmitError(null);
     setFormData({
       title: engagement.title,
+      projectImpact: (engagement.project_impact || 'Medium') as
+        | 'High'
+        | 'Medium'
+        | 'Low',
       description: engagement.description ?? '',
-      department: engagement.department ?? '',
-      budget: engagement.budget != null ? String(engagement.budget) : '',
     });
     setIsModalOpen(true);
   };
@@ -82,7 +101,11 @@ export function EngagementsPage() {
     setIsModalOpen(false);
     setCurrentEngagement(null);
     setSubmitError(null);
-    setFormData({ title: '', description: '', department: '', budget: '' });
+    setFormData({
+      title: '',
+      projectImpact: 'Medium',
+      description: '',
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,13 +114,20 @@ export function EngagementsPage() {
     setIsSubmitting(true);
 
     try {
-      await createEngagement({
-        title: formData.title.trim(),
-        description: formData.description.trim() || undefined,
-        department: formData.department.trim() || undefined,
-        budget: formData.budget ? Number(formData.budget) : undefined,
-        status: 'Draft',
-      });
+      if (isEditMode && currentEngagement) {
+        await updateEngagement(currentEngagement.id, {
+          title: formData.title.trim(),
+          description: formData.description.trim() || undefined,
+          project_impact: formData.projectImpact,
+        });
+      } else {
+        await createEngagement({
+          title: formData.title.trim(),
+          description: formData.description.trim() || undefined,
+          project_impact: formData.projectImpact,
+          status: 'active',
+        });
+      }
       closeModal();
     } catch (err: unknown) {
       const message =
@@ -110,22 +140,29 @@ export function EngagementsPage() {
 
   // ── Style helpers ──────────────────────────────────────────────────────
 
+  const getImpactBadgeClass = (impact: string) => {
+    switch (impact) {
+      case 'High':
+        return 'bg-red-100 text-red-700 border-red-200';
+      case 'Medium':
+        return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'Low':
+        return 'bg-green-100 text-green-700 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'Draft':
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'Under Review':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'Approved':
-        return 'bg-green-100 text-green-700 border-green-200';
-      case 'Rejected':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'Open':
+      case 'active':
         return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'In Progress':
-        return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-      case 'Closed':
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'on_hold':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'completed':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'cancelled':
+        return 'bg-red-100 text-red-700 border-red-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
@@ -141,7 +178,58 @@ export function EngagementsPage() {
   };
 
   const handleCardClick = (engagementId: string) => {
-    alert(`Viewing engagement ${engagementId}`);
+    const engagement = engagements.find((e) => e.id === engagementId);
+    if (engagement) {
+      setSelectedEngagement(engagement);
+      setIsDrawerOpen(true);
+    }
+  };
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+    setIsDrawerEditing(false);
+    setDrawerError(null);
+    setTimeout(() => setSelectedEngagement(null), 300);
+  };
+
+  const startDrawerEdit = () => {
+    if (!selectedEngagement) return;
+    setDrawerFormData({
+      title: selectedEngagement.title,
+      projectImpact: (selectedEngagement.project_impact || 'Medium') as
+        | 'High'
+        | 'Medium'
+        | 'Low',
+      description: selectedEngagement.description ?? '',
+    });
+    setDrawerError(null);
+    setIsDrawerEditing(true);
+  };
+
+  const cancelDrawerEdit = () => {
+    setIsDrawerEditing(false);
+    setDrawerError(null);
+  };
+
+  const handleDrawerSave = async () => {
+    if (!selectedEngagement) return;
+    setIsDrawerSubmitting(true);
+    setDrawerError(null);
+    try {
+      const updated = await updateEngagement(selectedEngagement.id, {
+        title: drawerFormData.title.trim(),
+        description: drawerFormData.description.trim() || undefined,
+        project_impact: drawerFormData.projectImpact,
+      });
+      setSelectedEngagement(updated);
+      setIsDrawerEditing(false);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to save changes.';
+      setDrawerError(message);
+    } finally {
+      setIsDrawerSubmitting(false);
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -245,67 +333,86 @@ export function EngagementsPage() {
         <>
           {/* Card View */}
           {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 animate-fadeIn">
-              {engagements.map((engagement) => (
-                <div
-                  key={engagement.id}
-                  onClick={() => handleCardClick(engagement.id)}
-                  className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
-                >
-                  {/* Card Content */}
-                  <div className="p-6">
-                    {/* Top Section - ID & Status */}
-                    <div className="flex items-start justify-between mb-4">
-                      <span className="text-xs font-mono font-medium text-gray-500 uppercase tracking-wide">
-                        {engagement.id.substring(0, 8)}
-                      </span>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
-                          engagement.status
-                        )}`}
-                      >
-                        {engagement.status}
-                      </span>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fadeIn">
+              {engagements.map((engagement) => {
+                const impact = (engagement.project_impact || 'Medium') as
+                  | 'High'
+                  | 'Medium'
+                  | 'Low';
+                const borderColor =
+                  impact === 'High'
+                    ? 'border-l-red-500'
+                    : impact === 'Medium'
+                      ? 'border-l-orange-400'
+                      : 'border-l-green-500';
 
-                    {/* Title */}
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 min-h-[3.5rem]">
-                      {engagement.title}
-                    </h3>
-
-                    {/* Department */}
-                    {engagement.department && (
-                      <p className="text-xs text-gray-500 mb-2">
-                        {engagement.department}
-                      </p>
-                    )}
-
-                    {/* Description */}
-                    <p
-                      className="text-sm text-gray-600 line-clamp-3 mb-6 min-h-[4.5rem]"
-                      title={engagement.description ?? ''}
-                    >
-                      {engagement.description || 'No description provided.'}
-                    </p>
-
-                    {/* Bottom Section */}
-                    <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
-                        Created {formatDate(engagement.created_at)}
-                      </span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => openEditModal(engagement, e)}
-                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
+                return (
+                  <div
+                    key={engagement.id}
+                    onClick={() => handleCardClick(engagement.id)}
+                    className={`relative bg-white rounded-xl shadow-sm border border-gray-200 border-l-4 ${borderColor} overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer group`}
+                  >
+                    <div className="p-5">
+                      {/* Top Section - ID & Status */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-mono font-semibold text-blue-600 tracking-wide">
+                          ENG-
+                          {String(engagement.engagement_number).padStart(
+                            4,
+                            '0'
+                          )}
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
+                            engagement.status
+                          )}`}
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                          {engagement.status.charAt(0).toUpperCase() +
+                            engagement.status.slice(1).replace('_', ' ')}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-base font-semibold text-gray-900 mb-3 line-clamp-2 min-h-[2.75rem]">
+                        {engagement.title}
+                      </h3>
+
+                      {/* Project Impact Badge */}
+                      <div className="mb-3">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getImpactBadgeClass(impact)}`}
+                        >
+                          {impact} Impact
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <p
+                        className="text-sm text-gray-600 line-clamp-3 mb-4 min-h-[3.75rem]"
+                        title={engagement.description ?? ''}
+                      >
+                        {engagement.description || 'No description provided.'}
+                      </p>
+
+                      {/* Bottom Section */}
+                      <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">
+                          Created {formatDate(engagement.created_at)}
+                        </span>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => openEditModal(engagement, e)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -317,10 +424,13 @@ export function EngagementsPage() {
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Engagement ID
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Title
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Department
+                        Project Impact
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Description
@@ -329,28 +439,37 @@ export function EngagementsPage() {
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Budget
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Created Date
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {engagements.map((engagement) => (
+                    {engagements.map((engagement, index) => (
                       <tr
                         key={engagement.id}
                         onClick={() => handleCardClick(engagement.id)}
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                       >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-blue-600 font-medium">
+                            ENG-
+                            {String(
+                              engagement.engagement_number ?? index + 1
+                            ).padStart(4, '0')}
+                          </span>
+                        </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-medium text-gray-900">
                             {engagement.title}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-600">
-                            {engagement.department || '—'}
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getImpactBadgeClass(
+                              engagement.project_impact || 'Medium'
+                            )}`}
+                          >
+                            {engagement.project_impact || 'Medium'} Impact
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -369,14 +488,8 @@ export function EngagementsPage() {
                               engagement.status
                             )}`}
                           >
-                            {engagement.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-600">
-                            {engagement.budget != null
-                              ? `$${engagement.budget.toLocaleString()}`
-                              : '—'}
+                            {engagement.status.charAt(0).toUpperCase() +
+                              engagement.status.slice(1).replace('_', ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -420,6 +533,26 @@ export function EngagementsPage() {
 
             {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Engagement ID */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Engagement ID
+                </label>
+                <input
+                  type="text"
+                  value={
+                    isEditMode
+                      ? `ENG-${String(currentEngagement?.engagement_number ?? '').padStart(4, '0')}`
+                      : generateEngagementId()
+                  }
+                  disabled
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Auto-generated incremental ID
+                </p>
+              </div>
+
               {/* Title */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -438,40 +571,36 @@ export function EngagementsPage() {
                 />
               </div>
 
-              {/* Department */}
+              {/* Project Impact */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Department
+                  Project Impact <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.department}
-                  onChange={(e) =>
-                    setFormData({ ...formData, department: e.target.value })
-                  }
-                  placeholder="e.g. Engineering, Marketing"
-                  disabled={isSubmitting}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
-                />
-              </div>
-
-              {/* Budget */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Budget
-                </label>
-                <input
-                  type="number"
-                  value={formData.budget}
-                  onChange={(e) =>
-                    setFormData({ ...formData, budget: e.target.value })
-                  }
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  disabled={isSubmitting}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
-                />
+                <div className="flex items-center gap-4">
+                  <select
+                    value={formData.projectImpact}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        projectImpact: e.target.value as
+                          | 'High'
+                          | 'Medium'
+                          | 'Low',
+                      })
+                    }
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                  <span
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${getImpactBadgeClass(formData.projectImpact)}`}
+                  >
+                    {formData.projectImpact}
+                  </span>
+                </div>
               </div>
 
               {/* Description */}
@@ -499,7 +628,7 @@ export function EngagementsPage() {
                   </label>
                   <input
                     type="text"
-                    value="Draft"
+                    value="Active"
                     disabled
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
                   />
@@ -542,6 +671,232 @@ export function EngagementsPage() {
             </form>
           </div>
         </div>
+      )}
+      {/* ── Details Drawer ────────────────────────────────────────────── */}
+      {(isDrawerOpen || selectedEngagement) && (
+        <>
+          {/* Backdrop */}
+          <div
+            className={`fixed inset-0 bg-black/30 z-40 transition-opacity duration-300 ${isDrawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={closeDrawer}
+          />
+
+          {/* Drawer */}
+          <div
+            className={`fixed top-0 right-0 h-[100dvh] w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            {selectedEngagement && (
+              <div className="h-full flex flex-col">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <div>
+                    <span className="text-xs font-mono font-semibold text-blue-600 tracking-wide">
+                      ENG-
+                      {String(selectedEngagement.engagement_number).padStart(
+                        4,
+                        '0'
+                      )}
+                    </span>
+                    {!isDrawerEditing ? (
+                      <h2 className="text-lg font-semibold text-gray-900 mt-1">
+                        {selectedEngagement.title}
+                      </h2>
+                    ) : (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Editing engagement
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={closeDrawer}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Drawer Body */}
+                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                  {!isDrawerEditing ? (
+                    /* ── View Mode ─────────────────────────────── */
+                    <>
+                      {/* Status & Impact */}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(selectedEngagement.status)}`}
+                        >
+                          {selectedEngagement.status.charAt(0).toUpperCase() +
+                            selectedEngagement.status
+                              .slice(1)
+                              .replace('_', ' ')}
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getImpactBadgeClass(selectedEngagement.project_impact || 'Medium')}`}
+                        >
+                          {selectedEngagement.project_impact || 'Medium'} Impact
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5" />
+                          Description
+                        </h3>
+                        <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-lg p-4">
+                          {selectedEngagement.description ||
+                            'No description provided.'}
+                        </p>
+                      </div>
+
+                      {/* Created Date */}
+                      <div>
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                          Details
+                        </h3>
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Created</p>
+                            <p className="text-sm font-medium text-gray-800">
+                              {formatDate(selectedEngagement.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── Edit Mode ───────────────────────────── */
+                    <>
+                      {/* Title */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={drawerFormData.title}
+                          onChange={(e) =>
+                            setDrawerFormData((prev) => ({
+                              ...prev,
+                              title: e.target.value,
+                            }))
+                          }
+                          disabled={isDrawerSubmitting}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                        />
+                      </div>
+
+                      {/* Project Impact */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Project Impact <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={drawerFormData.projectImpact}
+                            onChange={(e) =>
+                              setDrawerFormData((prev) => ({
+                                ...prev,
+                                projectImpact: e.target.value as
+                                  | 'High'
+                                  | 'Medium'
+                                  | 'Low',
+                              }))
+                            }
+                            disabled={isDrawerSubmitting}
+                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                          >
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                          </select>
+                          <span
+                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${getImpactBadgeClass(drawerFormData.projectImpact)}`}
+                          >
+                            {drawerFormData.projectImpact}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Description
+                        </label>
+                        <textarea
+                          value={drawerFormData.description}
+                          onChange={(e) =>
+                            setDrawerFormData((prev) => ({
+                              ...prev,
+                              description: e.target.value,
+                            }))
+                          }
+                          placeholder="Describe the scope and objective..."
+                          rows={5}
+                          disabled={isDrawerSubmitting}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none disabled:opacity-50"
+                        />
+                      </div>
+
+                      {/* Error */}
+                      {drawerError && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                          <p className="text-sm text-red-700">{drawerError}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Drawer Footer */}
+                <div className="px-6 py-4 pb-10 border-t border-gray-200 bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    {!isDrawerEditing ? (
+                      <>
+                        <button
+                          onClick={startDrawerEdit}
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit Engagement
+                        </button>
+                        <button
+                          onClick={closeDrawer}
+                          className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+                        >
+                          Close
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleDrawerSave}
+                          disabled={
+                            isDrawerSubmitting || !drawerFormData.title.trim()
+                          }
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isDrawerSubmitting && (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          )}
+                          {isDrawerSubmitting ? 'Saving…' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={cancelDrawerEdit}
+                          disabled={isDrawerSubmitting}
+                          className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
