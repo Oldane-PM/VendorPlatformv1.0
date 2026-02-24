@@ -53,6 +53,11 @@ export default async function handler(
         vendor_code,
         tax_id,
         status: vendorStatus,
+        email,
+        phone,
+        address,
+        contact_person,
+        category,
       } = req.body ?? {};
 
       if (
@@ -81,6 +86,11 @@ export default async function handler(
         vendor_code: vendor_code ?? undefined,
         tax_id: tax_id ?? undefined,
         status: vendorStatus ?? 'active',
+        email: email ?? undefined,
+        phone: phone ?? undefined,
+        address: address ?? undefined,
+        contact_person: contact_person ?? undefined,
+        category: category ?? undefined,
       });
 
       return res.status(201).json({ vendor });

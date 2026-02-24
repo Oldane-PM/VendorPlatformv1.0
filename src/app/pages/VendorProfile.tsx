@@ -46,7 +46,13 @@ export function VendorProfile() {
   const router = useRouter();
   const id = router.query.vendorId as string | undefined;
   const { engagements } = usePlatform();
-  const { vendor: vendorDto, loading, error } = useVendor(id);
+  const {
+    vendor: vendorDto,
+    loading,
+    error,
+    updateVendor,
+    updating,
+  } = useVendor(id);
 
   // Map DTO snake_case → camelCase so the template works unchanged
   const vendor = vendorDto
@@ -99,6 +105,15 @@ export function VendorProfile() {
     internalOnly: true,
   });
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+
+  // Inline edit state for vendor details
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editForm, setEditForm] = useState({
+    email: '',
+    phone: '',
+    address: '',
+    contactPerson: '',
+  });
 
   // State for notes editing
   const [isEditing, setIsEditing] = useState(false);
@@ -292,16 +307,47 @@ export function VendorProfile() {
     setIsEditing(true);
   };
 
-  const handleSaveClick = () => {
-    // In real app, this would save to backend
-    vendor.notes = editedNotes;
-    setIsEditing(false);
-    alert('Notes saved successfully!');
+  const handleSaveClick = async () => {
+    try {
+      await updateVendor({ notes: editedNotes });
+      setIsEditing(false);
+    } catch {
+      alert('Failed to save notes');
+    }
   };
 
   const handleCancelClick = () => {
     setEditedNotes(vendor.notes);
     setIsEditing(false);
+  };
+
+  // Handle inline detail editing
+  const handleStartEditDetails = () => {
+    setEditForm({
+      email: vendor.email,
+      phone: vendor.phone,
+      address: vendor.address,
+      contactPerson: vendor.contactPerson,
+    });
+    setEditingDetails(true);
+  };
+
+  const handleCancelEditDetails = () => {
+    setEditingDetails(false);
+  };
+
+  const handleSaveDetails = async () => {
+    try {
+      await updateVendor({
+        email: editForm.email || undefined,
+        phone: editForm.phone || undefined,
+        address: editForm.address || undefined,
+        contact_person: editForm.contactPerson || undefined,
+      });
+      setEditingDetails(false);
+    } catch {
+      alert('Failed to save vendor details');
+    }
   };
 
   return (
@@ -332,29 +378,115 @@ export function VendorProfile() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center text-gray-600">
-                <Mail className="w-5 h-5 mr-3" />
-                <a
-                  href={`mailto:${vendor.email}`}
-                  className="hover:text-blue-600"
-                >
-                  {vendor.email}
-                </a>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <Phone className="w-5 h-5 mr-3" />
-                <a href={`tel:${vendor.phone}`} className="hover:text-blue-600">
-                  {vendor.phone}
-                </a>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <MapPin className="w-5 h-5 mr-3" />
-                <span>{vendor.address}</span>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <User className="w-5 h-5 mr-3" />
-                <span>{vendor.contactPerson}</span>
-              </div>
+              {editingDetails ? (
+                <>
+                  <div className="flex items-center text-gray-600">
+                    <Mail className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, email: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email address"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Phone className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, phone: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={editForm.address}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, address: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Address"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <User className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={editForm.contactPerson}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          contactPerson: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Contact person"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={handleSaveDetails}
+                      disabled={updating}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {updating ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleCancelEditDetails}
+                      disabled={updating}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center text-gray-600">
+                    <Mail className="w-5 h-5 mr-3" />
+                    <a
+                      href={`mailto:${vendor.email}`}
+                      className="hover:text-blue-600"
+                    >
+                      {vendor.email || '—'}
+                    </a>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Phone className="w-5 h-5 mr-3" />
+                    <a
+                      href={`tel:${vendor.phone}`}
+                      className="hover:text-blue-600"
+                    >
+                      {vendor.phone || '—'}
+                    </a>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-3" />
+                    <span>{vendor.address || '—'}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <User className="w-5 h-5 mr-3" />
+                    <span>{vendor.contactPerson || '—'}</span>
+                  </div>
+                  <button
+                    onClick={handleStartEditDetails}
+                    className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Details
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

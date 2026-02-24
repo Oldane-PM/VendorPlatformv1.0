@@ -42,6 +42,24 @@ export interface CreateVendorInput {
   vendor_code?: string;
   tax_id?: string;
   status?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contact_person?: string;
+  category?: string;
+}
+
+export interface UpdateVendorInput {
+  vendor_name?: string;
+  vendor_code?: string;
+  tax_id?: string;
+  status?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contact_person?: string;
+  category?: string;
+  notes?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -99,6 +117,11 @@ export async function createVendor(
       vendor_code: input.vendor_code ?? null,
       tax_id: input.tax_id ?? null,
       status: input.status ?? 'active',
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      address: input.address ?? null,
+      contact_person: input.contact_person ?? null,
+      category: input.category ?? null,
     })
     .select('*')
     .single();
@@ -131,6 +154,38 @@ export async function getVendorById(
   }
 
   return data as VendorRow | null;
+}
+
+/**
+ * Update an existing vendor by ID and return the updated row.
+ */
+export async function updateVendor(
+  vendorId: string,
+  input: UpdateVendorInput
+): Promise<VendorRow> {
+  const supabase = createServerClient();
+
+  // Build a payload with only defined keys
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      payload[key] = value;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('vendors')
+    .update(payload)
+    .eq('id', vendorId)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('[vendorsRepo.updateVendor]', error);
+    throw new Error(error.message);
+  }
+
+  return data as VendorRow;
 }
 
 /**

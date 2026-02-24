@@ -95,6 +95,20 @@ export function Vendors() {
         vendor_code: vendorForm.registrationNumber || undefined,
         tax_id: vendorForm.taxId || undefined,
         status: vendorForm.status ? 'active' : 'inactive',
+        email: vendorForm.email.trim() || undefined,
+        phone: vendorForm.phone.trim() || undefined,
+        contact_person: vendorForm.primaryContactName.trim() || undefined,
+        address:
+          [
+            vendorForm.streetAddress,
+            vendorForm.city,
+            vendorForm.country,
+            vendorForm.postalCode,
+          ]
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(', ') || undefined,
+        category: vendorForm.industryCategory || undefined,
       });
 
       setShowAddVendorPanel(false);

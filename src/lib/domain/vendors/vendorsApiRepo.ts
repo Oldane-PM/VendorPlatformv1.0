@@ -31,6 +31,24 @@ export interface CreateVendorPayload {
   vendor_code?: string;
   tax_id?: string;
   status?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contact_person?: string;
+  category?: string;
+}
+
+export interface UpdateVendorPayload {
+  vendor_name?: string;
+  vendor_code?: string;
+  tax_id?: string;
+  status?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contact_person?: string;
+  category?: string;
+  notes?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,4 +116,18 @@ export async function getById(id: string): Promise<VendorDto | null> {
     if (err instanceof Error && err.message.includes('404')) return null;
     throw err;
   }
+}
+
+/**
+ * Update an existing vendor and return the updated row.
+ */
+export async function update(
+  id: string,
+  payload: UpdateVendorPayload
+): Promise<VendorDto> {
+  const data = await apiFetch<{ vendor: VendorDto }>(`/api/vendors/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data.vendor;
 }

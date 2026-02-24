@@ -1,7 +1,8 @@
 /**
  * API Route — /api/vendors/[id]
  *
- * GET → fetch a single vendor by ID
+ * GET   → fetch a single vendor by ID
+ * PATCH → update a vendor by ID
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as vendorsRepo from '@/lib/supabase/repos/vendorsRepo';
@@ -27,7 +28,37 @@ export default async function handler(
       return res.status(200).json({ vendor });
     }
 
-    res.setHeader('Allow', ['GET']);
+    if (req.method === 'PATCH') {
+      const {
+        vendor_name,
+        vendor_code,
+        tax_id,
+        status,
+        email,
+        phone,
+        address,
+        contact_person,
+        category,
+        notes,
+      } = req.body ?? {};
+
+      const vendor = await vendorsRepo.updateVendor(id, {
+        vendor_name,
+        vendor_code,
+        tax_id,
+        status,
+        email,
+        phone,
+        address,
+        contact_person,
+        category,
+        notes,
+      });
+
+      return res.status(200).json({ vendor });
+    }
+
+    res.setHeader('Allow', ['GET', 'PATCH']);
     return res.status(405).end();
   } catch (err: unknown) {
     const message =
