@@ -1,9 +1,9 @@
 import { Link, Outlet, useLocation } from 'react-router';
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   FileText,
   Receipt,
-  Users, 
+  Users,
   CheckSquare,
   BarChart3,
   Settings,
@@ -45,20 +45,38 @@ export function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems: NavItem[] = [
-    { path: '/ai-ocr', label: 'AI Document Upload', icon: Sparkles, badge: 'AI', isPrimaryAction: true },
+    {
+      path: '/ai-ocr',
+      label: 'AI Document Upload',
+      icon: Sparkles,
+      badge: 'AI',
+      isPrimaryAction: true,
+    },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { type: 'divider', label: 'Planning' },
     { path: '/sourcing', label: 'Engagements', icon: Clipboard },
     { path: '/work-orders', label: 'Work Orders', icon: FileCheck },
     { type: 'divider', label: 'Execution' },
-    { path: '/engagements', label: 'Vendor Engagements', icon: Handshake },
+    {
+      path: '/vendor-engagements',
+      label: 'Vendor Engagements',
+      icon: Handshake,
+    },
     { path: '/invoices', label: 'Invoices', icon: Receipt },
     { type: 'divider', label: 'Directory' },
     { path: '/vendors', label: 'Vendors', icon: Building2 },
     { type: 'divider', label: 'Financial' },
     { path: '/bank-account', label: 'Bank Account', icon: Landmark },
-    { path: '/payment-processing', label: 'Payment Processing', icon: CreditCard },
-    { path: '/account-reconciliation', label: 'Account Reconciliation', icon: ReceiptText },
+    {
+      path: '/payment-processing',
+      label: 'Payment Processing',
+      icon: CreditCard,
+    },
+    {
+      path: '/account-reconciliation',
+      label: 'Account Reconciliation',
+      icon: ReceiptText,
+    },
     { type: 'divider' },
     { path: '/users', label: 'Users', icon: Users },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
@@ -71,7 +89,10 @@ export function Layout() {
     }
     // Special handling for admin section
     if (path === '/admin') {
-      return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
+      return (
+        location.pathname === '/admin' ||
+        location.pathname.startsWith('/admin/')
+      );
     }
     return location.pathname.startsWith(path);
   };
@@ -115,7 +136,9 @@ export function Layout() {
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <UserIcon className="w-4 h-4 text-blue-600" />
               </div>
-              <span className="text-sm font-medium hidden lg:block text-gray-700">Oldane Graham</span>
+              <span className="text-sm font-medium hidden lg:block text-gray-700">
+                Oldane Graham
+              </span>
             </button>
           </div>
         </div>
@@ -132,9 +155,7 @@ export function Layout() {
         <div className="h-full flex flex-col overflow-y-auto">
           {/* Logo */}
           <div className="h-16 flex items-center px-6 border-b border-border">
-            <h1 className="text-xl font-semibold text-primary">
-              Intellibus
-            </h1>
+            <h1 className="text-xl font-semibold text-primary">Intellibus</h1>
           </div>
 
           {/* Navigation */}
@@ -183,14 +204,14 @@ export function Layout() {
                     >
                       <Icon className="w-5 h-5 mr-3" />
                       <span className="flex-1">{item.label}</span>
-                      
+
                       {/* AI Badge */}
                       {item.badge && (
                         <span className="ml-2 px-2 py-0.5 text-[10px] font-bold rounded-full tracking-wide bg-blue-500 text-white">
                           {item.badge}
                         </span>
                       )}
-                      
+
                       {/* Focus ring for accessibility */}
                       <div className="absolute inset-0 rounded-lg opacity-0 group-focus-visible:opacity-100 transition-opacity ring-2 ring-blue-400 ring-offset-2 pointer-events-none"></div>
                     </Link>
@@ -217,8 +238,10 @@ export function Layout() {
                   {active && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
                   )}
-                  
-                  <Icon className={`w-5 h-5 mr-3 ${active ? 'text-primary' : ''}`} />
+
+                  <Icon
+                    className={`w-5 h-5 mr-3 ${active ? 'text-primary' : ''}`}
+                  />
                   <span className="flex-1">{item.label}</span>
                 </Link>
               );
@@ -227,9 +250,7 @@ export function Layout() {
 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-border">
-            <p className="text-xs text-gray-500">
-              Vendor Management Platform
-            </p>
+            <p className="text-xs text-gray-500">Vendor Management Platform</p>
             <p className="text-xs text-gray-400 mt-1">
               v2.0 Enterprise Edition
             </p>

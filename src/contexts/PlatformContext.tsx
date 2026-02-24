@@ -4,8 +4,20 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
  * PlatformContext - Unified Data Context for Enterprise Vendor Management Platform
  */
 
-export type EngagementStatus = 'draft' | 'under-review' | 'approved' | 'rejected' | 'active' | 'completed';
-export type InvoiceStatus = 'submitted' | 'approved' | 'scheduled' | 'paid' | 'outstanding' | 'overdue';
+export type EngagementStatus =
+  | 'draft'
+  | 'under-review'
+  | 'approved'
+  | 'rejected'
+  | 'active'
+  | 'completed';
+export type InvoiceStatus =
+  | 'submitted'
+  | 'approved'
+  | 'scheduled'
+  | 'paid'
+  | 'outstanding'
+  | 'overdue';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'returned';
 
 export interface RFQ {
@@ -13,7 +25,12 @@ export interface RFQ {
   engagementId: string;
   vendorId: string;
   vendorName: string;
-  lineItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+  lineItems: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
   subtotal: number;
   taxes: number;
   total: number;
@@ -104,7 +121,11 @@ export interface Vendor {
   taxId: string;
   joinedDate: string;
   lastEngagementDate: string;
-  performanceMetrics: { onTimeDelivery: number; paymentDisputes: number; complianceIncidents: number };
+  performanceMetrics: {
+    onTimeDelivery: number;
+    paymentDisputes: number;
+    complianceIncidents: number;
+  };
   notes: string;
 }
 
@@ -116,73 +137,27 @@ interface PlatformContextType {
   deleteEngagement: (id: string) => void;
   getEngagement: (id: string) => Engagement | undefined;
   addRFQToEngagement: (engagementId: string, rfq: Omit<RFQ, 'id'>) => void;
-  addDocumentToEngagement: (engagementId: string, document: Omit<Document, 'id'>) => void;
-  updateApprovalStep: (engagementId: string, stepId: string, update: Partial<ApprovalStep>) => void;
-  addActivityLog: (engagementId: string, entry: Omit<ActivityLogEntry, 'id'>) => void;
+  addDocumentToEngagement: (
+    engagementId: string,
+    document: Omit<Document, 'id'>
+  ) => void;
+  updateApprovalStep: (
+    engagementId: string,
+    stepId: string,
+    update: Partial<ApprovalStep>
+  ) => void;
+  addActivityLog: (
+    engagementId: string,
+    entry: Omit<ActivityLogEntry, 'id'>
+  ) => void;
   getVendor: (id: string) => Vendor | undefined;
 }
 
-const PlatformContext = createContext<PlatformContextType | undefined>(undefined);
+const PlatformContext = createContext<PlatformContextType | undefined>(
+  undefined
+);
 
-const mockVendors: Vendor[] = [
-  {
-    id: 'v1',
-    name: 'Acme Corporation',
-    email: 'contact@acme.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Business St, New York, NY 10001',
-    category: 'Manufacturing',
-    status: 'active',
-    rating: 4.8,
-    riskScore: 15,
-    totalEngagements: 24,
-    totalSpent: 1284500,
-    contactPerson: 'John Smith',
-    taxId: 'TX-123456',
-    joinedDate: '2023-01-15',
-    lastEngagementDate: '2026-02-10',
-    performanceMetrics: { onTimeDelivery: 95, paymentDisputes: 2, complianceIncidents: 0 },
-    notes: 'Reliable supplier with consistent quality',
-  },
-  {
-    id: 'v2',
-    name: 'Global Tech Solutions',
-    email: 'info@globaltech.com',
-    phone: '+1 (555) 234-5678',
-    address: '456 Tech Ave, San Francisco, CA 94105',
-    category: 'Technology',
-    status: 'active',
-    rating: 4.6,
-    riskScore: 22,
-    totalEngagements: 18,
-    totalSpent: 956300,
-    contactPerson: 'Sarah Johnson',
-    taxId: 'TX-234567',
-    joinedDate: '2023-03-22',
-    lastEngagementDate: '2026-02-12',
-    performanceMetrics: { onTimeDelivery: 92, paymentDisputes: 1, complianceIncidents: 1 },
-    notes: 'Excellent for hardware and software solutions',
-  },
-  {
-    id: 'v3',
-    name: 'Prime Logistics Ltd',
-    email: 'support@primelogistics.com',
-    phone: '+1 (555) 345-6789',
-    address: '789 Shipping Rd, Chicago, IL 60601',
-    category: 'Logistics',
-    status: 'active',
-    rating: 4.9,
-    riskScore: 8,
-    totalEngagements: 32,
-    totalSpent: 2412800,
-    contactPerson: 'Michael Chen',
-    taxId: 'TX-345678',
-    joinedDate: '2022-11-08',
-    lastEngagementDate: '2026-02-14',
-    performanceMetrics: { onTimeDelivery: 98, paymentDisputes: 0, complianceIncidents: 0 },
-    notes: 'Fast and reliable shipping partner',
-  },
-];
+// mockVendors removed — vendors are now fetched from Supabase via useVendors hook.
 
 const mockEngagements: Engagement[] = [
   {
@@ -196,7 +171,8 @@ const mockEngagements: Engagement[] = [
     createdDate: '2026-01-15',
     lastUpdated: '2026-02-10',
     assignedApprover: 'Jennifer Martinez',
-    description: 'Purchase of new manufacturing equipment for production line expansion',
+    description:
+      'Purchase of new manufacturing equipment for production line expansion',
     rfqs: [
       {
         id: 'rfq-001-1',
@@ -204,8 +180,18 @@ const mockEngagements: Engagement[] = [
         vendorId: 'v1',
         vendorName: 'Acme Corporation',
         lineItems: [
-          { description: 'CNC Machine Model X200', quantity: 2, unitPrice: 75000, total: 150000 },
-          { description: 'Installation & Training', quantity: 1, unitPrice: 15000, total: 15000 },
+          {
+            description: 'CNC Machine Model X200',
+            quantity: 2,
+            unitPrice: 75000,
+            total: 150000,
+          },
+          {
+            description: 'Installation & Training',
+            quantity: 1,
+            unitPrice: 15000,
+            total: 15000,
+          },
         ],
         subtotal: 165000,
         taxes: 13200,
@@ -229,13 +215,38 @@ const mockEngagements: Engagement[] = [
       },
     ],
     approvalSteps: [
-      { id: 'step-001-1', approverName: 'David Park', approverRole: 'Department Manager', status: 'approved', timestamp: '2026-01-18T10:30:00Z', comments: 'Equipment meets our production requirements' },
-      { id: 'step-001-2', approverName: 'Jennifer Martinez', approverRole: 'Finance Director', status: 'pending' },
+      {
+        id: 'step-001-1',
+        approverName: 'David Park',
+        approverRole: 'Department Manager',
+        status: 'approved',
+        timestamp: '2026-01-18T10:30:00Z',
+        comments: 'Equipment meets our production requirements',
+      },
+      {
+        id: 'step-001-2',
+        approverName: 'Jennifer Martinez',
+        approverRole: 'Finance Director',
+        status: 'pending',
+      },
     ],
     invoices: [],
     activityLog: [
-      { id: 'log-001-1', timestamp: '2026-01-15T09:00:00Z', user: 'David Park', action: 'Created engagement', details: 'Initiated new equipment purchase engagement' },
-      { id: 'log-001-2', timestamp: '2026-01-20T14:30:00Z', user: 'David Park', action: 'Submitted for approval', details: 'Submitted engagement for departmental review', statusChange: 'draft → under-review' },
+      {
+        id: 'log-001-1',
+        timestamp: '2026-01-15T09:00:00Z',
+        user: 'David Park',
+        action: 'Created engagement',
+        details: 'Initiated new equipment purchase engagement',
+      },
+      {
+        id: 'log-001-2',
+        timestamp: '2026-01-20T14:30:00Z',
+        user: 'David Park',
+        action: 'Submitted for approval',
+        details: 'Submitted engagement for departmental review',
+        statusChange: 'draft → under-review',
+      },
     ],
   },
   {
@@ -249,7 +260,8 @@ const mockEngagements: Engagement[] = [
     createdDate: '2025-12-10',
     lastUpdated: '2026-01-25',
     assignedApprover: 'Robert Chang',
-    description: 'Cloud infrastructure migration and setup for enterprise applications',
+    description:
+      'Cloud infrastructure migration and setup for enterprise applications',
     rfqs: [
       {
         id: 'rfq-002-1',
@@ -257,9 +269,24 @@ const mockEngagements: Engagement[] = [
         vendorId: 'v2',
         vendorName: 'Global Tech Solutions',
         lineItems: [
-          { description: 'Cloud Infrastructure Setup', quantity: 1, unitPrice: 150000, total: 150000 },
-          { description: 'Migration Services', quantity: 1, unitPrice: 100000, total: 100000 },
-          { description: '12-Month Support Package', quantity: 1, unitPrice: 50000, total: 50000 },
+          {
+            description: 'Cloud Infrastructure Setup',
+            quantity: 1,
+            unitPrice: 150000,
+            total: 150000,
+          },
+          {
+            description: 'Migration Services',
+            quantity: 1,
+            unitPrice: 100000,
+            total: 100000,
+          },
+          {
+            description: '12-Month Support Package',
+            quantity: 1,
+            unitPrice: 50000,
+            total: 50000,
+          },
         ],
         subtotal: 300000,
         taxes: 24000,
@@ -270,8 +297,22 @@ const mockEngagements: Engagement[] = [
     ],
     documents: [],
     approvalSteps: [
-      { id: 'step-002-1', approverName: 'Michael Torres', approverRole: 'IT Director', status: 'approved', timestamp: '2025-12-20T11:15:00Z', comments: 'Aligned with our digital transformation strategy' },
-      { id: 'step-002-2', approverName: 'Robert Chang', approverRole: 'CTO', status: 'approved', timestamp: '2026-01-25T16:45:00Z', comments: 'Approved for implementation' },
+      {
+        id: 'step-002-1',
+        approverName: 'Michael Torres',
+        approverRole: 'IT Director',
+        status: 'approved',
+        timestamp: '2025-12-20T11:15:00Z',
+        comments: 'Aligned with our digital transformation strategy',
+      },
+      {
+        id: 'step-002-2',
+        approverName: 'Robert Chang',
+        approverRole: 'CTO',
+        status: 'approved',
+        timestamp: '2026-01-25T16:45:00Z',
+        comments: 'Approved for implementation',
+      },
     ],
     invoices: [
       {
@@ -288,8 +329,21 @@ const mockEngagements: Engagement[] = [
       },
     ],
     activityLog: [
-      { id: 'log-002-1', timestamp: '2025-12-10T08:00:00Z', user: 'Michael Torres', action: 'Created engagement', details: 'Initiated cloud migration project' },
-      { id: 'log-002-2', timestamp: '2026-01-25T16:45:00Z', user: 'Robert Chang', action: 'Approved engagement', details: 'Final approval granted', statusChange: 'under-review → approved' },
+      {
+        id: 'log-002-1',
+        timestamp: '2025-12-10T08:00:00Z',
+        user: 'Michael Torres',
+        action: 'Created engagement',
+        details: 'Initiated cloud migration project',
+      },
+      {
+        id: 'log-002-2',
+        timestamp: '2026-01-25T16:45:00Z',
+        user: 'Robert Chang',
+        action: 'Approved engagement',
+        details: 'Final approval granted',
+        statusChange: 'under-review → approved',
+      },
     ],
   },
   {
@@ -307,7 +361,14 @@ const mockEngagements: Engagement[] = [
     rfqs: [],
     documents: [],
     approvalSteps: [
-      { id: 'step-003-1', approverName: 'Lisa Anderson', approverRole: 'Operations Director', status: 'approved', timestamp: '2025-12-05T10:00:00Z', comments: 'Excellent track record, approved for renewal' },
+      {
+        id: 'step-003-1',
+        approverName: 'Lisa Anderson',
+        approverRole: 'Operations Director',
+        status: 'approved',
+        timestamp: '2025-12-05T10:00:00Z',
+        comments: 'Excellent track record, approved for renewal',
+      },
     ],
     invoices: [
       {
@@ -337,28 +398,62 @@ const mockEngagements: Engagement[] = [
       },
     ],
     activityLog: [
-      { id: 'log-003-1', timestamp: '2025-11-20T09:30:00Z', user: 'Lisa Anderson', action: 'Created engagement', details: 'Initiated annual contract renewal' },
-      { id: 'log-003-2', timestamp: '2025-12-05T10:00:00Z', user: 'Lisa Anderson', action: 'Approved engagement', details: 'Contract renewal approved', statusChange: 'under-review → active' },
+      {
+        id: 'log-003-1',
+        timestamp: '2025-11-20T09:30:00Z',
+        user: 'Lisa Anderson',
+        action: 'Created engagement',
+        details: 'Initiated annual contract renewal',
+      },
+      {
+        id: 'log-003-2',
+        timestamp: '2025-12-05T10:00:00Z',
+        user: 'Lisa Anderson',
+        action: 'Approved engagement',
+        details: 'Contract renewal approved',
+        statusChange: 'under-review → active',
+      },
     ],
   },
 ];
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const [engagements, setEngagements] = useState<Engagement[]>(mockEngagements);
-  const [vendors] = useState<Vendor[]>(mockVendors);
+  const vendors: Vendor[] = []; // vendors now served by Supabase
 
-  const addEngagement = (engagement: Omit<Engagement, 'id' | 'activityLog'>) => {
+  const addEngagement = (
+    engagement: Omit<Engagement, 'id' | 'activityLog'>
+  ) => {
     const newEngagement: Engagement = {
       ...engagement,
       id: `eng-${Date.now()}`,
-      activityLog: [{ id: `log-${Date.now()}`, timestamp: new Date().toISOString(), user: 'Current User', action: 'Created engagement', details: 'Initiated new engagement' }],
+      activityLog: [
+        {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          user: 'Current User',
+          action: 'Created engagement',
+          details: 'Initiated new engagement',
+        },
+      ],
     };
     setEngagements((prev) => [newEngagement, ...prev]);
   };
 
-  const updateEngagement = (id: string, updatedEngagement: Partial<Engagement>) => {
+  const updateEngagement = (
+    id: string,
+    updatedEngagement: Partial<Engagement>
+  ) => {
     setEngagements((prev) =>
-      prev.map((eng) => (eng.id === id ? { ...eng, ...updatedEngagement, lastUpdated: new Date().toISOString().split('T')[0] } : eng))
+      prev.map((eng) =>
+        eng.id === id
+          ? {
+              ...eng,
+              ...updatedEngagement,
+              lastUpdated: new Date().toISOString().split('T')[0],
+            }
+          : eng
+      )
     );
   };
 
@@ -366,35 +461,77 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setEngagements((prev) => prev.filter((eng) => eng.id !== id));
   };
 
-  const getEngagement = (id: string) => engagements.find((eng) => eng.id === id);
+  const getEngagement = (id: string) =>
+    engagements.find((eng) => eng.id === id);
 
   const addRFQToEngagement = (engagementId: string, rfq: Omit<RFQ, 'id'>) => {
     setEngagements((prev) =>
-      prev.map((eng) => (eng.id === engagementId ? { ...eng, rfqs: [...eng.rfqs, { ...rfq, id: `rfq-${Date.now()}` }] } : eng))
-    );
-  };
-
-  const addDocumentToEngagement = (engagementId: string, document: Omit<Document, 'id'>) => {
-    setEngagements((prev) =>
-      prev.map((eng) => (eng.id === engagementId ? { ...eng, documents: [...eng.documents, { ...document, id: `doc-${Date.now()}` }] } : eng))
-    );
-  };
-
-  const updateApprovalStep = (engagementId: string, stepId: string, update: Partial<ApprovalStep>) => {
-    setEngagements((prev) =>
       prev.map((eng) =>
-        eng.id === engagementId ? { ...eng, approvalSteps: eng.approvalSteps.map((step) => (step.id === stepId ? { ...step, ...update } : step)) } : eng
+        eng.id === engagementId
+          ? { ...eng, rfqs: [...eng.rfqs, { ...rfq, id: `rfq-${Date.now()}` }] }
+          : eng
       )
     );
   };
 
-  const addActivityLog = (engagementId: string, entry: Omit<ActivityLogEntry, 'id'>) => {
+  const addDocumentToEngagement = (
+    engagementId: string,
+    document: Omit<Document, 'id'>
+  ) => {
     setEngagements((prev) =>
-      prev.map((eng) => (eng.id === engagementId ? { ...eng, activityLog: [...eng.activityLog, { ...entry, id: `log-${Date.now()}` }] } : eng))
+      prev.map((eng) =>
+        eng.id === engagementId
+          ? {
+              ...eng,
+              documents: [
+                ...eng.documents,
+                { ...document, id: `doc-${Date.now()}` },
+              ],
+            }
+          : eng
+      )
     );
   };
 
-  const getVendor = (id: string) => vendors.find((v) => v.id === id);
+  const updateApprovalStep = (
+    engagementId: string,
+    stepId: string,
+    update: Partial<ApprovalStep>
+  ) => {
+    setEngagements((prev) =>
+      prev.map((eng) =>
+        eng.id === engagementId
+          ? {
+              ...eng,
+              approvalSteps: eng.approvalSteps.map((step) =>
+                step.id === stepId ? { ...step, ...update } : step
+              ),
+            }
+          : eng
+      )
+    );
+  };
+
+  const addActivityLog = (
+    engagementId: string,
+    entry: Omit<ActivityLogEntry, 'id'>
+  ) => {
+    setEngagements((prev) =>
+      prev.map((eng) =>
+        eng.id === engagementId
+          ? {
+              ...eng,
+              activityLog: [
+                ...eng.activityLog,
+                { ...entry, id: `log-${Date.now()}` },
+              ],
+            }
+          : eng
+      )
+    );
+  };
+
+  const getVendor = (id: string) => vendors.find((v) => v.id === id); // returns undefined — vendors empty
 
   return (
     <PlatformContext.Provider
@@ -419,6 +556,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
 
 export function usePlatform() {
   const context = useContext(PlatformContext);
-  if (context === undefined) throw new Error('usePlatform must be used within a PlatformProvider');
+  if (context === undefined)
+    throw new Error('usePlatform must be used within a PlatformProvider');
   return context;
 }
