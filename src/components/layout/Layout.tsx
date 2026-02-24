@@ -72,6 +72,7 @@ export function Layout({ children }: LayoutProps) {
       label: 'Engagements',
       icon: Clipboard,
     },
+    { id: 'nav-rfqs', path: '/rfqs', label: 'RFQs', icon: FileCheck },
     {
       id: 'nav-work-orders',
       path: '/work-orders',
@@ -81,7 +82,7 @@ export function Layout({ children }: LayoutProps) {
     { type: 'divider', label: 'Execution' },
     {
       id: 'nav-vendor-engagements',
-      path: '/engagements',
+      path: '/vendor-engagements',
       label: 'Vendor Engagements',
       icon: Handshake,
     },

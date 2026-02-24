@@ -44,58 +44,81 @@ const formatDate = (d: Date) =>
 
 // Modern SaaS Color Palette
 const COLORS = {
-  primary: '#2563EB',      // Blue - Approved/Core
-  primaryDeep: '#1E40AF',  // Deep Blue
-  success: '#10B981',      // Emerald - Positive/Growth
-  warning: '#F59E0B',      // Amber - Pending/Review
-  danger: '#EF4444',       // Rose - Alerts
-  neutral: '#64748B',      // Slate - Neutral
-  background: '#F8FAFC',   // Background
-  teal: '#14B8A6',         // Teal - Active
-  purple: '#8B5CF6',       // Purple - Marketing/Secondary
+  primary: '#2563EB', // Blue - Approved/Core
+  primaryDeep: '#1E40AF', // Deep Blue
+  success: '#10B981', // Emerald - Positive/Growth
+  warning: '#F59E0B', // Amber - Pending/Review
+  danger: '#EF4444', // Rose - Alerts
+  neutral: '#64748B', // Slate - Neutral
+  background: '#F8FAFC', // Background
+  teal: '#14B8A6', // Teal - Active
+  purple: '#8B5CF6', // Purple - Marketing/Secondary
 };
 
 export function GlobalDashboard() {
-  const { engagements, vendors } = usePlatform();
-  const [timeRange, setTimeRange] = useState<'monthly' | 'quarterly' | 'ytd'>('monthly');
+  const { engagements } = usePlatform();
+  const [timeRange, setTimeRange] = useState<'monthly' | 'quarterly' | 'ytd'>(
+    'monthly'
+  );
 
   // Calculate KPIs
-  const activeEngagements = engagements.filter((e) => e.status === 'active' || e.status === 'under-review').length;
+  const activeEngagements = engagements.filter(
+    (e) => e.status === 'active' || e.status === 'under-review'
+  ).length;
   const pendingApprovals = engagements.filter((e) =>
     e.approvalSteps.some((step) => step.status === 'pending')
   ).length;
-  
+
   const allInvoices = engagements.flatMap((e) => e.invoices);
-  const outstandingInvoices = allInvoices.filter((i) => i.status === 'outstanding' || i.status === 'overdue').length;
+  const outstandingInvoices = allInvoices.filter(
+    (i) => i.status === 'outstanding' || i.status === 'overdue'
+  ).length;
   const totalSpendYTD = engagements.reduce((sum, e) => sum + e.totalValue, 0);
 
   // Engagement Status Distribution for Stacked Bar
   const totalEngagements = engagements.length;
-  const approvedCount = engagements.filter((e) => e.status === 'approved').length;
-  const underReviewCount = engagements.filter((e) => e.status === 'under-review').length;
+  const approvedCount = engagements.filter(
+    (e) => e.status === 'approved'
+  ).length;
+  const underReviewCount = engagements.filter(
+    (e) => e.status === 'under-review'
+  ).length;
   const activeCount = engagements.filter((e) => e.status === 'active').length;
-  const completedCount = engagements.filter((e) => e.status === 'completed').length;
+  const completedCount = engagements.filter(
+    (e) => e.status === 'completed'
+  ).length;
 
-  const statusStackedData = [{
-    name: 'Status',
-    approved: approvedCount,
-    underReview: underReviewCount,
-    active: activeCount,
-    completed: completedCount,
-  }];
+  const statusStackedData = [
+    {
+      name: 'Status',
+      approved: approvedCount,
+      underReview: underReviewCount,
+      active: activeCount,
+      completed: completedCount,
+    },
+  ];
 
   // Calculate completion rate
-  const completionRate = totalEngagements > 0 ? Math.round((completedCount / totalEngagements) * 100) : 0;
+  const completionRate =
+    totalEngagements > 0
+      ? Math.round((completedCount / totalEngagements) * 100)
+      : 0;
 
   // Approval Pipeline by Department
   const departmentData = Array.from(
     new Set(engagements.map((e) => e.department))
   ).map((dept) => {
-    const pending = engagements.filter((e) => e.department === dept && e.status === 'under-review').length;
-    const approved = engagements.filter((e) => e.department === dept && e.status === 'approved').length;
-    const completed = engagements.filter((e) => e.department === dept && e.status === 'completed').length;
+    const pending = engagements.filter(
+      (e) => e.department === dept && e.status === 'under-review'
+    ).length;
+    const approved = engagements.filter(
+      (e) => e.department === dept && e.status === 'approved'
+    ).length;
+    const completed = engagements.filter(
+      (e) => e.department === dept && e.status === 'completed'
+    ).length;
     const total = pending + approved + completed;
-    
+
     return {
       name: dept,
       pending,
@@ -107,18 +130,56 @@ export function GlobalDashboard() {
 
   // Monthly Spending Trends (Last 6 months) - Curved with gradient
   const spendingTrends = [
-    { month: 'Aug', IT: 45000, Operations: 32000, Finance: 28000, Marketing: 15000 },
-    { month: 'Sep', IT: 52000, Operations: 38000, Finance: 31000, Marketing: 18000 },
-    { month: 'Oct', IT: 48000, Operations: 42000, Finance: 35000, Marketing: 22000 },
-    { month: 'Nov', IT: 61000, Operations: 45000, Finance: 38000, Marketing: 25000 },
-    { month: 'Dec', IT: 58000, Operations: 48000, Finance: 42000, Marketing: 28000 },
-    { month: 'Jan', IT: 65000, Operations: 51000, Finance: 45000, Marketing: 31000 },
+    {
+      month: 'Aug',
+      IT: 45000,
+      Operations: 32000,
+      Finance: 28000,
+      Marketing: 15000,
+    },
+    {
+      month: 'Sep',
+      IT: 52000,
+      Operations: 38000,
+      Finance: 31000,
+      Marketing: 18000,
+    },
+    {
+      month: 'Oct',
+      IT: 48000,
+      Operations: 42000,
+      Finance: 35000,
+      Marketing: 22000,
+    },
+    {
+      month: 'Nov',
+      IT: 61000,
+      Operations: 45000,
+      Finance: 38000,
+      Marketing: 25000,
+    },
+    {
+      month: 'Dec',
+      IT: 58000,
+      Operations: 48000,
+      Finance: 42000,
+      Marketing: 28000,
+    },
+    {
+      month: 'Jan',
+      IT: 65000,
+      Operations: 51000,
+      Finance: 45000,
+      Marketing: 31000,
+    },
   ];
 
   // Calculate trend percentage
   const latestIT = spendingTrends[spendingTrends.length - 1].IT;
   const previousIT = spendingTrends[spendingTrends.length - 2].IT;
-  const trendPercentage = Math.round(((latestIT - previousIT) / previousIT) * 100);
+  const trendPercentage = Math.round(
+    ((latestIT - previousIT) / previousIT) * 100
+  );
 
   // Department Engagement Volume & Value - Dual Axis
   const engagementVolume = Array.from(
@@ -126,29 +187,39 @@ export function GlobalDashboard() {
   ).map((dept) => ({
     name: dept,
     volume: engagements.filter((e) => e.department === dept).length,
-    value: engagements.filter((e) => e.department === dept).reduce((sum, e) => sum + e.totalValue, 0) / 1000,
+    value:
+      engagements
+        .filter((e) => e.department === dept)
+        .reduce((sum, e) => sum + e.totalValue, 0) / 1000,
   }));
 
   // Recent Activity
   const recentActivity = engagements
-    .flatMap((e) => 
+    .flatMap((e) =>
       e.activityLog.map((log) => ({
         ...log,
         engagementId: e.id,
         engagementTitle: e.title,
       }))
     )
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
     .slice(0, 8);
 
   // High-Risk Flags
-  const highRiskEngagements = engagements.filter((e) => 
+  const highRiskEngagements = engagements.filter((e) =>
     e.rfqs.some((rfq) => rfq.aiRiskFlag && rfq.aiRiskFlag !== 'None')
   );
 
   // System Health Indicator
-  const systemHealth = highRiskEngagements.length === 0 && pendingApprovals < 5 ? 'Stable' : 
-                       highRiskEngagements.length > 2 || pendingApprovals > 10 ? 'Attention' : 'Good';
+  const systemHealth =
+    highRiskEngagements.length === 0 && pendingApprovals < 5
+      ? 'Stable'
+      : highRiskEngagements.length > 2 || pendingApprovals > 10
+        ? 'Attention'
+        : 'Good';
 
   // Spend Alert
   const showSpendAlert = trendPercentage > 15;
@@ -160,12 +231,20 @@ export function GlobalDashboard() {
         <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
           <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-xs text-gray-700 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></span>
+            <p
+              key={index}
+              className="text-xs text-gray-700 flex items-center gap-2"
+            >
+              <span
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              ></span>
               <span className="font-medium">{entry.name}:</span>
-              <span className="font-semibold">{typeof entry.value === 'number' && entry.value > 1000 
-                ? `$${entry.value.toLocaleString()}` 
-                : entry.value}</span>
+              <span className="font-semibold">
+                {typeof entry.value === 'number' && entry.value > 1000
+                  ? `$${entry.value.toLocaleString()}`
+                  : entry.value}
+              </span>
             </p>
           ))}
         </div>
@@ -179,23 +258,35 @@ export function GlobalDashboard() {
       {/* Header with System Health */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Global Dashboard</h1>
+          <h1 className="text-3xl font-semibold text-gray-900">
+            Global Dashboard
+          </h1>
           <p className="text-gray-500 mt-1">
             Executive overview across all departments
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-medium">System Health:</span>
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
-            systemHealth === 'Stable' ? 'bg-emerald-50 text-emerald-700' :
-            systemHealth === 'Good' ? 'bg-blue-50 text-blue-700' :
-            'bg-amber-50 text-amber-700'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${
-              systemHealth === 'Stable' ? 'bg-emerald-500 animate-pulse' :
-              systemHealth === 'Good' ? 'bg-blue-500' :
-              'bg-amber-500 animate-pulse'
-            }`}></span>
+          <span className="text-sm text-gray-600 font-medium">
+            System Health:
+          </span>
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              systemHealth === 'Stable'
+                ? 'bg-emerald-50 text-emerald-700'
+                : systemHealth === 'Good'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-amber-50 text-amber-700'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                systemHealth === 'Stable'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : systemHealth === 'Good'
+                    ? 'bg-blue-500'
+                    : 'bg-amber-500 animate-pulse'
+              }`}
+            ></span>
             {systemHealth}
           </div>
         </div>
@@ -210,7 +301,8 @@ export function GlobalDashboard() {
               ⚠ IT Spend up {trendPercentage}% this month
             </p>
             <p className="text-xs text-amber-700 mt-1">
-              Current trajectory exceeds quarterly budget projections. Review recommended.
+              Current trajectory exceeds quarterly budget projections. Review
+              recommended.
             </p>
           </div>
         </div>
@@ -225,10 +317,15 @@ export function GlobalDashboard() {
               <h2 className="text-xl font-semibold">AI-Powered Insights</h2>
             </div>
             <p className="text-blue-100 text-sm mb-4">
-              Get instant analysis of all engagements, vendors, and financial data with AI
+              Get instant analysis of all engagements, vendors, and financial
+              data with AI
             </p>
             <button
-              onClick={() => alert('AI Platform Analysis\n\nGenerating insights:\n• Risk assessment across all vendors\n• Spending pattern analysis\n• Approval bottleneck detection\n• Contract compliance review\n• Vendor performance trends\n• Budget optimization recommendations')}
+              onClick={() =>
+                alert(
+                  'AI Platform Analysis\n\nGenerating insights:\n• Risk assessment across all vendors\n• Spending pattern analysis\n• Approval bottleneck detection\n• Contract compliance review\n• Vendor performance trends\n• Budget optimization recommendations'
+                )
+              }
               className="px-5 py-2.5 bg-white text-indigo-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-semibold shadow-sm"
             >
               <Sparkles className="w-4 h-4 inline mr-2" />
@@ -250,7 +347,9 @@ export function GlobalDashboard() {
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 font-medium">Active Engagements</p>
+              <p className="text-sm text-gray-600 font-medium">
+                Active Engagements
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 {activeEngagements}
               </p>
@@ -271,7 +370,9 @@ export function GlobalDashboard() {
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 font-medium">Pending Approvals</p>
+              <p className="text-sm text-gray-600 font-medium">
+                Pending Approvals
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 {pendingApprovals}
               </p>
@@ -291,7 +392,9 @@ export function GlobalDashboard() {
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 font-medium">Outstanding Invoices</p>
+              <p className="text-sm text-gray-600 font-medium">
+                Outstanding Invoices
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 {outstandingInvoices}
               </p>
@@ -312,7 +415,9 @@ export function GlobalDashboard() {
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 font-medium">Total Spend (YTD)</p>
+              <p className="text-sm text-gray-600 font-medium">
+                Total Spend (YTD)
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 ${(totalSpendYTD / 1000).toFixed(0)}K
               </p>
@@ -343,8 +448,8 @@ export function GlobalDashboard() {
                 <button
                   onClick={() => setTimeRange('monthly')}
                   className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
-                    timeRange === 'monthly' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
+                    timeRange === 'monthly'
+                      ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -353,8 +458,8 @@ export function GlobalDashboard() {
                 <button
                   onClick={() => setTimeRange('quarterly')}
                   className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
-                    timeRange === 'quarterly' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
+                    timeRange === 'quarterly'
+                      ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -363,89 +468,107 @@ export function GlobalDashboard() {
                 <button
                   onClick={() => setTimeRange('ytd')}
                   className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
-                    timeRange === 'ytd' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
+                    timeRange === 'ytd'
+                      ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   YTD
                 </button>
               </div>
-              
+
               {/* Trend Badge */}
-              <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
-                trendPercentage > 0 
-                  ? 'bg-emerald-50 text-emerald-700' 
-                  : 'bg-rose-50 text-rose-700'
-              }`}>
-                {trendPercentage > 0 ? '↑' : '↓'} {Math.abs(trendPercentage)}% vs last period
+              <div
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                  trendPercentage > 0
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-rose-50 text-rose-700'
+                }`}
+              >
+                {trendPercentage > 0 ? '↑' : '↓'} {Math.abs(trendPercentage)}%
+                vs last period
               </div>
             </div>
           </div>
-          
+
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={spendingTrends}>
               <defs>
                 {/* Gradient for IT (Primary) */}
                 <linearGradient id="colorIT" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
+                  <stop
+                    offset="5%"
+                    stopColor={COLORS.primary}
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={COLORS.primary}
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
-              <XAxis 
-                dataKey="month" 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
+                strokeOpacity={0.5}
+                vertical={false}
+              />
+              <XAxis
+                dataKey="month"
                 tick={{ fill: '#64748B', fontSize: 12 }}
                 axisLine={{ stroke: '#e5e7eb' }}
               />
-              <YAxis 
+              <YAxis
                 tick={{ fill: '#64748B', fontSize: 12 }}
                 axisLine={{ stroke: '#e5e7eb' }}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="circle"
-              />
-              
+              <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+
               {/* IT - Primary with Area Fill */}
-              <Area 
-                type="natural" 
-                dataKey="IT" 
-                stroke={COLORS.primary} 
+              <Area
+                type="natural"
+                dataKey="IT"
+                stroke={COLORS.primary}
                 strokeWidth={2.5}
-                fill="url(#colorIT)" 
-                name="IT" 
-                dot={{ fill: COLORS.primary, r: 5, strokeWidth: 2, stroke: '#fff' }}
+                fill="url(#colorIT)"
+                name="IT"
+                dot={{
+                  fill: COLORS.primary,
+                  r: 5,
+                  strokeWidth: 2,
+                  stroke: '#fff',
+                }}
               />
-              
+
               {/* Secondary Lines - Thinner and Lower Opacity */}
-              <Line 
-                type="natural" 
-                dataKey="Operations" 
-                stroke={COLORS.neutral} 
+              <Line
+                type="natural"
+                dataKey="Operations"
+                stroke={COLORS.neutral}
                 strokeWidth={1.5}
                 strokeOpacity={0.8}
-                name="Operations" 
+                name="Operations"
                 dot={{ fill: COLORS.neutral, r: 4 }}
               />
-              <Line 
-                type="natural" 
-                dataKey="Finance" 
-                stroke={COLORS.success} 
+              <Line
+                type="natural"
+                dataKey="Finance"
+                stroke={COLORS.success}
                 strokeWidth={1.5}
                 strokeOpacity={0.8}
-                name="Finance" 
+                name="Finance"
                 dot={{ fill: COLORS.success, r: 4 }}
               />
-              <Line 
-                type="natural" 
-                dataKey="Marketing" 
-                stroke={COLORS.purple} 
+              <Line
+                type="natural"
+                dataKey="Marketing"
+                stroke={COLORS.purple}
                 strokeWidth={1.5}
                 strokeOpacity={0.8}
-                name="Marketing" 
+                name="Marketing"
                 dot={{ fill: COLORS.purple, r: 4 }}
               />
             </ComposedChart>
@@ -460,32 +583,44 @@ export function GlobalDashboard() {
               Approval Pipeline Overview
             </h2>
           </div>
-          
+
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={departmentData} layout="horizontal">
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#e5e7eb" 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
                 strokeOpacity={0.3}
                 horizontal={true}
                 vertical={false}
               />
               <XAxis type="number" tick={{ fill: '#64748B', fontSize: 11 }} />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
+              <YAxis
+                type="category"
+                dataKey="name"
                 tick={{ fill: '#64748B', fontSize: 11 }}
                 width={80}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '10px' }}
-                iconType="circle"
+              <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
+
+              <Bar
+                dataKey="pending"
+                fill={COLORS.warning}
+                name="Pending"
+                radius={[4, 4, 4, 4]}
               />
-              
-              <Bar dataKey="pending" fill={COLORS.warning} name="Pending" radius={[4, 4, 4, 4]} />
-              <Bar dataKey="approved" fill={COLORS.primary} name="Approved" radius={[4, 4, 4, 4]} />
-              <Bar dataKey="completed" fill={COLORS.success} name="Completed" radius={[4, 4, 4, 4]} />
+              <Bar
+                dataKey="approved"
+                fill={COLORS.primary}
+                name="Approved"
+                radius={[4, 4, 4, 4]}
+              />
+              <Bar
+                dataKey="completed"
+                fill={COLORS.success}
+                name="Completed"
+                radius={[4, 4, 4, 4]}
+              />
             </BarChart>
           </ResponsiveContainer>
 
@@ -514,7 +649,9 @@ export function GlobalDashboard() {
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-500 font-medium">Completion Rate</p>
-            <p className="text-2xl font-bold text-emerald-600">{completionRate}%</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {completionRate}%
+            </p>
           </div>
         </div>
 
@@ -522,25 +659,29 @@ export function GlobalDashboard() {
         <div className="relative">
           <div className="flex h-16 rounded-lg overflow-hidden shadow-sm">
             {approvedCount > 0 && (
-              <div 
+              <div
                 className="bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center text-white font-semibold text-sm cursor-pointer"
-                style={{ width: `${(approvedCount / totalEngagements) * 100}%` }}
+                style={{
+                  width: `${(approvedCount / totalEngagements) * 100}%`,
+                }}
                 title={`Approved: ${approvedCount}`}
               >
                 {((approvedCount / totalEngagements) * 100).toFixed(0)}%
               </div>
             )}
             {underReviewCount > 0 && (
-              <div 
+              <div
                 className="bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center text-white font-semibold text-sm cursor-pointer"
-                style={{ width: `${(underReviewCount / totalEngagements) * 100}%` }}
+                style={{
+                  width: `${(underReviewCount / totalEngagements) * 100}%`,
+                }}
                 title={`Under Review: ${underReviewCount}`}
               >
                 {((underReviewCount / totalEngagements) * 100).toFixed(0)}%
               </div>
             )}
             {activeCount > 0 && (
-              <div 
+              <div
                 className="bg-teal-500 hover:bg-teal-600 transition-colors flex items-center justify-center text-white font-semibold text-sm cursor-pointer"
                 style={{ width: `${(activeCount / totalEngagements) * 100}%` }}
                 title={`Active: ${activeCount}`}
@@ -549,9 +690,11 @@ export function GlobalDashboard() {
               </div>
             )}
             {completedCount > 0 && (
-              <div 
+              <div
                 className="bg-slate-500 hover:bg-slate-600 transition-colors flex items-center justify-center text-white font-semibold text-sm cursor-pointer"
-                style={{ width: `${(completedCount / totalEngagements) * 100}%` }}
+                style={{
+                  width: `${(completedCount / totalEngagements) * 100}%`,
+                }}
                 title={`Completed: ${completedCount}`}
               >
                 {((completedCount / totalEngagements) * 100).toFixed(0)}%
@@ -565,14 +708,18 @@ export function GlobalDashboard() {
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
               <div>
                 <p className="text-xs text-gray-500">Approved</p>
-                <p className="text-sm font-bold text-gray-900">{approvedCount}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {approvedCount}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-amber-500 rounded"></div>
               <div>
                 <p className="text-xs text-gray-500">Under Review</p>
-                <p className="text-sm font-bold text-gray-900">{underReviewCount}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {underReviewCount}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -586,7 +733,9 @@ export function GlobalDashboard() {
               <div className="w-4 h-4 bg-slate-500 rounded"></div>
               <div>
                 <p className="text-xs text-gray-500">Completed</p>
-                <p className="text-sm font-bold text-gray-900">{completedCount}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {completedCount}
+                </p>
               </div>
             </div>
           </div>
@@ -603,17 +752,17 @@ export function GlobalDashboard() {
               Department Engagement Volume
             </h2>
           </div>
-          
+
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={engagementVolume}>
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#e5e7eb" 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
                 strokeOpacity={0.3}
                 vertical={false}
               />
-              <XAxis 
-                dataKey="name" 
+              <XAxis
+                dataKey="name"
                 tick={{ fill: '#64748B', fontSize: 11 }}
                 angle={-15}
                 textAnchor="end"
@@ -621,9 +770,9 @@ export function GlobalDashboard() {
               />
               <YAxis tick={{ fill: '#64748B', fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar 
-                dataKey="volume" 
-                fill={COLORS.primary} 
+              <Bar
+                dataKey="volume"
+                fill={COLORS.primary}
                 name="Engagements"
                 radius={[8, 8, 0, 0]}
               />
@@ -639,17 +788,17 @@ export function GlobalDashboard() {
               Department Spend Value ($K)
             </h2>
           </div>
-          
+
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={engagementVolume}>
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#e5e7eb" 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
                 strokeOpacity={0.3}
                 vertical={false}
               />
-              <XAxis 
-                dataKey="name" 
+              <XAxis
+                dataKey="name"
                 tick={{ fill: '#64748B', fontSize: 11 }}
                 angle={-15}
                 textAnchor="end"
@@ -657,9 +806,9 @@ export function GlobalDashboard() {
               />
               <YAxis tick={{ fill: '#64748B', fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar 
-                dataKey="value" 
-                fill={COLORS.success} 
+              <Bar
+                dataKey="value"
+                fill={COLORS.success}
                 name="Value ($K)"
                 radius={[8, 8, 0, 0]}
               />
@@ -681,7 +830,10 @@ export function GlobalDashboard() {
           <div className="p-6 max-h-96 overflow-y-auto">
             <div className="space-y-4">
               {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex gap-4 pb-4 border-b border-gray-100 last:border-0">
+                <div
+                  key={activity.id}
+                  className="flex gap-4 pb-4 border-b border-gray-100 last:border-0"
+                >
                   <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -736,7 +888,9 @@ export function GlobalDashboard() {
                 <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckSquare className="w-8 h-8 text-emerald-600" />
                 </div>
-                <p className="text-sm font-semibold text-gray-900">No high-risk engagements</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  No high-risk engagements
+                </p>
                 <p className="text-xs text-gray-500 mt-1">
                   All engagements are within acceptable risk parameters
                 </p>
@@ -763,7 +917,11 @@ export function GlobalDashboard() {
                     <div className="mt-2 flex items-center gap-2">
                       <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                       <p className="text-xs text-rose-700 font-semibold">
-                        {eng.rfqs.find((r) => r.aiRiskFlag && r.aiRiskFlag !== 'None')?.aiRiskFlag}
+                        {
+                          eng.rfqs.find(
+                            (r) => r.aiRiskFlag && r.aiRiskFlag !== 'None'
+                          )?.aiRiskFlag
+                        }
                       </p>
                     </div>
                   </Link>

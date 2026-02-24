@@ -166,77 +166,7 @@ const PlatformContext = createContext<PlatformContextType | undefined>(
   undefined
 );
 
-const mockVendors: Vendor[] = [
-  {
-    id: 'v1',
-    name: 'Acme Corporation',
-    email: 'contact@acme.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Business St, New York, NY 10001',
-    category: 'Manufacturing',
-    status: 'active',
-    rating: 4.8,
-    riskScore: 15,
-    totalEngagements: 24,
-    totalSpent: 1284500,
-    contactPerson: 'John Smith',
-    taxId: 'TX-123456',
-    joinedDate: '2023-01-15',
-    lastEngagementDate: '2026-02-10',
-    performanceMetrics: {
-      onTimeDelivery: 95,
-      paymentDisputes: 2,
-      complianceIncidents: 0,
-    },
-    notes: 'Reliable supplier with consistent quality',
-  },
-  {
-    id: 'v2',
-    name: 'Global Tech Solutions',
-    email: 'info@globaltech.com',
-    phone: '+1 (555) 234-5678',
-    address: '456 Tech Ave, San Francisco, CA 94105',
-    category: 'Technology',
-    status: 'active',
-    rating: 4.6,
-    riskScore: 22,
-    totalEngagements: 18,
-    totalSpent: 956300,
-    contactPerson: 'Sarah Johnson',
-    taxId: 'TX-234567',
-    joinedDate: '2023-03-22',
-    lastEngagementDate: '2026-02-12',
-    performanceMetrics: {
-      onTimeDelivery: 92,
-      paymentDisputes: 1,
-      complianceIncidents: 1,
-    },
-    notes: 'Excellent for hardware and software solutions',
-  },
-  {
-    id: 'v3',
-    name: 'Prime Logistics Ltd',
-    email: 'support@primelogistics.com',
-    phone: '+1 (555) 345-6789',
-    address: '789 Shipping Rd, Chicago, IL 60601',
-    category: 'Logistics',
-    status: 'active',
-    rating: 4.9,
-    riskScore: 8,
-    totalEngagements: 32,
-    totalSpent: 2412800,
-    contactPerson: 'Michael Chen',
-    taxId: 'TX-345678',
-    joinedDate: '2022-11-08',
-    lastEngagementDate: '2026-02-14',
-    performanceMetrics: {
-      onTimeDelivery: 98,
-      paymentDisputes: 0,
-      complianceIncidents: 0,
-    },
-    notes: 'Fast and reliable shipping partner',
-  },
-];
+// mockVendors removed — vendors are now fetched from Supabase via useVendors hook.
 
 const mockEngagements: Engagement[] = [
   {
@@ -499,7 +429,6 @@ const mockEngagements: Engagement[] = [
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const [engagements, setEngagements] = useState<Engagement[]>(mockEngagements);
-  const [vendors] = useState<Vendor[]>(mockVendors);
 
   const addEngagement = (
     engagement: Omit<Engagement, 'id' | 'activityLog'>
@@ -615,9 +544,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const getVendor = (id: string) => {
-    return vendors.find((v) => v.id === id);
-  };
+  // Vendors list is now empty — the Vendors page fetches from Supabase via useVendors hook.
+  // getVendor kept for backward compat with VendorProfile.tsx (will return undefined for non-seeded IDs).
+  const vendors: Vendor[] = [];
+  const getVendor = (id: string) => vendors.find((v) => v.id === id);
 
   return (
     <PlatformContext.Provider
