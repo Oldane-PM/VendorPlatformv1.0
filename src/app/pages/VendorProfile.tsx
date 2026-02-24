@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { usePlatform } from '../contexts/PlatformContext';
+import { useVendor } from '@/lib/hooks/useVendor';
 import { useState } from 'react';
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ import {
   MessageSquare,
   Paperclip,
   Info,
+  Loader2,
 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import {
@@ -43,9 +45,42 @@ import {
 export function VendorProfile() {
   const router = useRouter();
   const id = router.query.vendorId as string | undefined;
-  const { getVendor, engagements } = usePlatform();
+  const { engagements } = usePlatform();
+  const {
+    vendor: vendorDto,
+    loading,
+    error,
+    updateVendor,
+    updating,
+  } = useVendor(id);
 
-  const vendor = id ? getVendor(id) : undefined;
+  // Map DTO snake_case → camelCase so the template works unchanged
+  const vendor = vendorDto
+    ? {
+        id: vendorDto.id,
+        name: vendorDto.vendor_name,
+        email: vendorDto.email ?? '',
+        phone: vendorDto.phone ?? '',
+        address: vendorDto.address ?? '',
+        category: vendorDto.category ?? '',
+        status: vendorDto.status as 'active' | 'inactive' | 'suspended',
+        rating: vendorDto.rating ?? 0,
+        riskScore: vendorDto.risk_score ?? 0,
+        totalEngagements: vendorDto.total_engagements ?? 0,
+        totalSpent: vendorDto.total_spent ?? 0,
+        contactPerson: vendorDto.contact_person ?? '',
+        taxId: vendorDto.tax_id ?? '',
+        joinedDate: vendorDto.joined_date ?? '',
+        lastEngagementDate: vendorDto.last_engagement_date ?? '',
+        performanceMetrics: {
+          onTimeDelivery: 95,
+          paymentDisputes: 0,
+          complianceIncidents: 0,
+        },
+        notes: vendorDto.notes ?? '',
+      }
+    : undefined;
+
   const vendorEngagements = engagements.filter((e) => e.vendorId === id);
 
   // State management
@@ -71,9 +106,42 @@ export function VendorProfile() {
   });
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
+  // Inline edit state for vendor details
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editForm, setEditForm] = useState({
+    email: '',
+    phone: '',
+    address: '',
+    contactPerson: '',
+  });
+
   // State for notes editing
   const [isEditing, setIsEditing] = useState(false);
   const [editedNotes, setEditedNotes] = useState(vendor?.notes || '');
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading vendor…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-2">Failed to load vendor</p>
+        <p className="text-gray-500 text-sm mb-4">{error}</p>
+        <Link
+          href="/vendors"
+          className="text-blue-600 hover:text-blue-700 inline-block"
+        >
+          Back to Vendors
+        </Link>
+      </div>
+    );
+  }
 
   if (!vendor) {
     return (
@@ -117,15 +185,34 @@ export function VendorProfile() {
 
   // Performance data for radar chart
   const performanceData = [
-    { metric: 'On-Time Delivery', value: performanceMetrics.onTimeDelivery, fullMark: 100 },
-    { metric: 'Quality Score', value: performanceMetrics.qualityScore, fullMark: 100 },
-    { metric: 'Communication', value: performanceMetrics.communication, fullMark: 100 },
+    {
+      metric: 'On-Time Delivery',
+      value: performanceMetrics.onTimeDelivery,
+      fullMark: 100,
+    },
+    {
+      metric: 'Quality Score',
+      value: performanceMetrics.qualityScore,
+      fullMark: 100,
+    },
+    {
+      metric: 'Communication',
+      value: performanceMetrics.communication,
+      fullMark: 100,
+    },
     { metric: 'Pricing', value: performanceMetrics.pricing, fullMark: 100 },
-    { metric: 'Compliance', value: performanceMetrics.compliance, fullMark: 100 },
+    {
+      metric: 'Compliance',
+      value: performanceMetrics.compliance,
+      fullMark: 100,
+    },
   ];
 
   // Handle metric update
-  const handleMetricChange = (metric: keyof typeof performanceMetrics, value: number) => {
+  const handleMetricChange = (
+    metric: keyof typeof performanceMetrics,
+    value: number
+  ) => {
     setPerformanceMetrics({
       ...performanceMetrics,
       [metric]: Math.min(100, Math.max(0, value)),
@@ -134,19 +221,23 @@ export function VendorProfile() {
 
   // Handle feedback submission
   const handleSubmitFeedback = () => {
-    if (!feedbackForm.engagementRef || feedbackForm.categories.length === 0 || !feedbackForm.notes) {
+    if (
+      !feedbackForm.engagementRef ||
+      feedbackForm.categories.length === 0 ||
+      !feedbackForm.notes
+    ) {
       alert('Please fill in all required fields');
       return;
     }
-    
+
     alert(
       `✅ Feedback Submitted Successfully!\n\n` +
-      `Engagement: ${feedbackForm.engagementRef}\n` +
-      `Categories: ${feedbackForm.categories.join(', ')}\n` +
-      `Internal Only: ${feedbackForm.internalOnly ? 'Yes' : 'No'}\n` +
-      `File Attached: ${attachedFile ? attachedFile.name : 'None'}`
+        `Engagement: ${feedbackForm.engagementRef}\n` +
+        `Categories: ${feedbackForm.categories.join(', ')}\n` +
+        `Internal Only: ${feedbackForm.internalOnly ? 'Yes' : 'No'}\n` +
+        `File Attached: ${attachedFile ? attachedFile.name : 'None'}`
     );
-    
+
     // Reset form
     setShowFeedbackModal(false);
     setFeedbackForm({
@@ -216,16 +307,47 @@ export function VendorProfile() {
     setIsEditing(true);
   };
 
-  const handleSaveClick = () => {
-    // In real app, this would save to backend
-    vendor.notes = editedNotes;
-    setIsEditing(false);
-    alert('Notes saved successfully!');
+  const handleSaveClick = async () => {
+    try {
+      await updateVendor({ notes: editedNotes });
+      setIsEditing(false);
+    } catch {
+      alert('Failed to save notes');
+    }
   };
 
   const handleCancelClick = () => {
     setEditedNotes(vendor.notes);
     setIsEditing(false);
+  };
+
+  // Handle inline detail editing
+  const handleStartEditDetails = () => {
+    setEditForm({
+      email: vendor.email,
+      phone: vendor.phone,
+      address: vendor.address,
+      contactPerson: vendor.contactPerson,
+    });
+    setEditingDetails(true);
+  };
+
+  const handleCancelEditDetails = () => {
+    setEditingDetails(false);
+  };
+
+  const handleSaveDetails = async () => {
+    try {
+      await updateVendor({
+        email: editForm.email || undefined,
+        phone: editForm.phone || undefined,
+        address: editForm.address || undefined,
+        contact_person: editForm.contactPerson || undefined,
+      });
+      setEditingDetails(false);
+    } catch {
+      alert('Failed to save vendor details');
+    }
   };
 
   return (
@@ -256,37 +378,130 @@ export function VendorProfile() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center text-gray-600">
-                <Mail className="w-5 h-5 mr-3" />
-                <a href={`mailto:${vendor.email}`} className="hover:text-blue-600">
-                  {vendor.email}
-                </a>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <Phone className="w-5 h-5 mr-3" />
-                <a href={`tel:${vendor.phone}`} className="hover:text-blue-600">
-                  {vendor.phone}
-                </a>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <MapPin className="w-5 h-5 mr-3" />
-                <span>{vendor.address}</span>
-              </div>
-              <div className="flex items-center text-gray-600">
-                <User className="w-5 h-5 mr-3" />
-                <span>{vendor.contactPerson}</span>
-              </div>
+              {editingDetails ? (
+                <>
+                  <div className="flex items-center text-gray-600">
+                    <Mail className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, email: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email address"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Phone className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, phone: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={editForm.address}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, address: e.target.value })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Address"
+                    />
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <User className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={editForm.contactPerson}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          contactPerson: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Contact person"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={handleSaveDetails}
+                      disabled={updating}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {updating ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleCancelEditDetails}
+                      disabled={updating}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center text-gray-600">
+                    <Mail className="w-5 h-5 mr-3" />
+                    <a
+                      href={`mailto:${vendor.email}`}
+                      className="hover:text-blue-600"
+                    >
+                      {vendor.email || '—'}
+                    </a>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Phone className="w-5 h-5 mr-3" />
+                    <a
+                      href={`tel:${vendor.phone}`}
+                      className="hover:text-blue-600"
+                    >
+                      {vendor.phone || '—'}
+                    </a>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-3" />
+                    <span>{vendor.address || '—'}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <User className="w-5 h-5 mr-3" />
+                    <span>{vendor.contactPerson || '—'}</span>
+                  </div>
+                  <button
+                    onClick={handleStartEditDetails}
+                    className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Details
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Risk Score Badge */}
           <div className="flex flex-col items-center gap-2">
-            <div className={`${getRiskScoreBg(vendor.riskScore)} p-6 rounded-lg text-center`}>
+            <div
+              className={`${getRiskScoreBg(vendor.riskScore)} p-6 rounded-lg text-center`}
+            >
               <p className="text-sm text-gray-600 mb-2">Risk Score</p>
-              <p className={`text-4xl font-bold ${getRiskScoreColor(vendor.riskScore)}`}>
+              <p
+                className={`text-4xl font-bold ${getRiskScoreColor(vendor.riskScore)}`}
+              >
                 {vendor.riskScore}
               </p>
-              
+
               {/* Editable Star Rating */}
               <div className="mt-4 pt-4 border-t border-gray-300">
                 <div className="flex items-center justify-center gap-1 mb-2">
@@ -303,9 +518,7 @@ export function VendorProfile() {
                   <option value={4}>4 Stars</option>
                   <option value={5}>5 Stars</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Engagement rating
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Engagement rating</p>
               </div>
             </div>
 
@@ -417,7 +630,7 @@ export function VendorProfile() {
               <p className="text-xs font-semibold text-blue-900 mb-3">
                 Edit Performance Scores (0-100)
               </p>
-              
+
               {/* On-Time Delivery */}
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-gray-700">
@@ -431,7 +644,10 @@ export function VendorProfile() {
                     step="1"
                     value={performanceMetrics.onTimeDelivery}
                     onChange={(e) =>
-                      handleMetricChange('onTimeDelivery', parseInt(e.target.value) || 0)
+                      handleMetricChange(
+                        'onTimeDelivery',
+                        parseInt(e.target.value) || 0
+                      )
                     }
                     className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -452,7 +668,10 @@ export function VendorProfile() {
                     step="1"
                     value={performanceMetrics.qualityScore}
                     onChange={(e) =>
-                      handleMetricChange('qualityScore', parseInt(e.target.value) || 0)
+                      handleMetricChange(
+                        'qualityScore',
+                        parseInt(e.target.value) || 0
+                      )
                     }
                     className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -473,7 +692,10 @@ export function VendorProfile() {
                     step="1"
                     value={performanceMetrics.communication}
                     onChange={(e) =>
-                      handleMetricChange('communication', parseInt(e.target.value) || 0)
+                      handleMetricChange(
+                        'communication',
+                        parseInt(e.target.value) || 0
+                      )
                     }
                     className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -494,7 +716,10 @@ export function VendorProfile() {
                     step="1"
                     value={performanceMetrics.pricing}
                     onChange={(e) =>
-                      handleMetricChange('pricing', parseInt(e.target.value) || 0)
+                      handleMetricChange(
+                        'pricing',
+                        parseInt(e.target.value) || 0
+                      )
                     }
                     className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -515,7 +740,10 @@ export function VendorProfile() {
                     step="1"
                     value={performanceMetrics.compliance}
                     onChange={(e) =>
-                      handleMetricChange('compliance', parseInt(e.target.value) || 0)
+                      handleMetricChange(
+                        'compliance',
+                        parseInt(e.target.value) || 0
+                      )
                     }
                     className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -543,8 +771,8 @@ export function VendorProfile() {
                         riskLevel.color === 'green'
                           ? 'bg-green-100 text-green-800'
                           : riskLevel.color === 'yellow'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
                       }`}
                     >
                       {riskLevel.icon} {riskLevel.label}
@@ -554,7 +782,8 @@ export function VendorProfile() {
                 <div className="flex items-start gap-2 mt-2">
                   <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-blue-700">
-                    Calculated automatically as average of all metrics. 85-100 = Low Risk, 70-84 = Medium Risk, &lt;70 = High Risk
+                    Calculated automatically as average of all metrics. 85-100 =
+                    Low Risk, 70-84 = Medium Risk, &lt;70 = High Risk
                   </p>
                 </div>
               </div>
@@ -612,7 +841,9 @@ export function VendorProfile() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+              <Tooltip
+                formatter={(value) => `$${Number(value).toLocaleString()}`}
+              />
               <Line
                 type="monotone"
                 dataKey="amount"
@@ -655,11 +886,14 @@ export function VendorProfile() {
             <div className="flex items-center mt-1">
               <Calendar className="w-4 h-4 text-gray-400 mr-2" />
               <p className="text-gray-900">
-                {new Date(vendor.lastEngagementDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {new Date(vendor.lastEngagementDate).toLocaleDateString(
+                  'en-US',
+                  {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  }
+                )}
               </p>
             </div>
           </div>
@@ -696,7 +930,8 @@ export function VendorProfile() {
                     <div>
                       <p className="font-medium text-gray-900">{eng.title}</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        {eng.department} • {new Date(eng.createdDate).toLocaleDateString()}
+                        {eng.department} •{' '}
+                        {new Date(eng.createdDate).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
@@ -780,7 +1015,10 @@ export function VendorProfile() {
                 <select
                   value={feedbackForm.engagementRef}
                   onChange={(e) =>
-                    setFeedbackForm({ ...feedbackForm, engagementRef: e.target.value })
+                    setFeedbackForm({
+                      ...feedbackForm,
+                      engagementRef: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
@@ -799,24 +1037,28 @@ export function VendorProfile() {
                   Performance Category <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-2">
-                  {['Delivery', 'Quality', 'Communication', 'Pricing', 'Compliance'].map(
-                    (category) => (
-                      <label
-                        key={category}
-                        className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={feedbackForm.categories.includes(category)}
-                          onChange={() => toggleCategory(category)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          {category}
-                        </span>
-                      </label>
-                    )
-                  )}
+                  {[
+                    'Delivery',
+                    'Quality',
+                    'Communication',
+                    'Pricing',
+                    'Compliance',
+                  ].map((category) => (
+                    <label
+                      key={category}
+                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={feedbackForm.categories.includes(category)}
+                        onChange={() => toggleCategory(category)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        {category}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -870,7 +1112,9 @@ export function VendorProfile() {
               {/* Internal Only Toggle */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Internal Only</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Internal Only
+                  </p>
                   <p className="text-xs text-gray-600 mt-1">
                     Feedback will not be shared with the vendor
                   </p>
@@ -888,7 +1132,9 @@ export function VendorProfile() {
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      feedbackForm.internalOnly ? 'translate-x-6' : 'translate-x-1'
+                      feedbackForm.internalOnly
+                        ? 'translate-x-6'
+                        : 'translate-x-1'
                     }`}
                   />
                 </button>
