@@ -51,20 +51,57 @@ export function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems: NavItem[] = [
-    { id: 'nav-ai-ocr', path: '/ai-ocr', label: 'AI Document Upload', icon: Sparkles, badge: 'AI', isPrimaryAction: true },
-    { id: 'nav-dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    {
+      id: 'nav-ai-ocr',
+      path: '/ai-ocr',
+      label: 'AI Document Upload',
+      icon: Sparkles,
+      badge: 'AI',
+      isPrimaryAction: true,
+    },
+    {
+      id: 'nav-dashboard',
+      path: '/',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+    },
     { type: 'divider', label: 'Planning' },
-    { id: 'nav-engagements', path: '/engagements', label: 'Engagements', icon: Clipboard },
+    {
+      id: 'nav-engagements',
+      path: '/engagements',
+      label: 'Engagements',
+      icon: Clipboard,
+    },
     { id: 'nav-rfqs', path: '/rfqs', label: 'RFQs', icon: FileCheck },
     { type: 'divider', label: 'Execution' },
-    { id: 'nav-vendor-engagements', path: '/engagements', label: 'Vendor Engagements', icon: Handshake },
+    {
+      id: 'nav-vendor-engagements',
+      path: '/vendor-engagements',
+      label: 'Vendor Engagements',
+      icon: Handshake,
+    },
     { id: 'nav-invoices', path: '/invoices', label: 'Invoices', icon: Receipt },
     { type: 'divider', label: 'Directory' },
     { id: 'nav-vendors', path: '/vendors', label: 'Vendors', icon: Building2 },
     { type: 'divider', label: 'Financial' },
-    { id: 'nav-bank-account', path: '/bank-account', label: 'Bank Account', icon: Landmark },
-    { id: 'nav-payment-processing', path: '/payment-processing', label: 'Payment Processing', icon: CreditCard },
-    { id: 'nav-account-reconciliation', path: '/account-reconciliation', label: 'Account Reconciliation', icon: ReceiptText },
+    {
+      id: 'nav-bank-account',
+      path: '/bank-account',
+      label: 'Bank Account',
+      icon: Landmark,
+    },
+    {
+      id: 'nav-payment-processing',
+      path: '/payment-processing',
+      label: 'Payment Processing',
+      icon: CreditCard,
+    },
+    {
+      id: 'nav-account-reconciliation',
+      path: '/account-reconciliation',
+      label: 'Account Reconciliation',
+      icon: ReceiptText,
+    },
     { type: 'divider' },
     { id: 'nav-users', path: '/admin/users', label: 'Users', icon: Users },
     { id: 'nav-reports', path: '/reports', label: 'Reports', icon: BarChart3 },
@@ -73,7 +110,10 @@ export function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => {
     if (path === '/') return router.pathname === '/';
-    if (path === '/admin') return router.pathname === '/admin' || router.pathname.startsWith('/admin');
+    if (path === '/admin')
+      return (
+        router.pathname === '/admin' || router.pathname.startsWith('/admin')
+      );
     return router.pathname.startsWith(path);
   };
 
@@ -85,7 +125,11 @@ export function Layout({ children }: LayoutProps) {
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
           >
-            {isMobileMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+            {isMobileMenuOpen ? (
+              <X className="w-5 h-5 text-gray-700" />
+            ) : (
+              <Menu className="w-5 h-5 text-gray-700" />
+            )}
           </button>
           <div className="flex-1 max-w-xl mx-auto hidden md:block">
             <div className="relative">
@@ -106,7 +150,9 @@ export function Layout({ children }: LayoutProps) {
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <UserIcon className="w-4 h-4 text-blue-600" />
               </div>
-              <span className="text-sm font-medium hidden lg:block text-gray-700">User</span>
+              <span className="text-sm font-medium hidden lg:block text-gray-700">
+                User
+              </span>
             </button>
           </div>
         </div>
@@ -131,7 +177,9 @@ export function Layout({ children }: LayoutProps) {
                 if (item.label) {
                   return (
                     <div key={`divider-${index}`} className="pt-4 pb-2 px-3">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{item.label}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        {item.label}
+                      </p>
                     </div>
                   );
                 }
@@ -183,7 +231,9 @@ export function Layout({ children }: LayoutProps) {
                   {active && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
                   )}
-                  <Icon className={`w-5 h-5 mr-3 ${active ? 'text-primary' : ''}`} />
+                  <Icon
+                    className={`w-5 h-5 mr-3 ${active ? 'text-primary' : ''}`}
+                  />
                   <span className="flex-1">{item.label}</span>
                 </Link>
               );
@@ -191,7 +241,9 @@ export function Layout({ children }: LayoutProps) {
           </nav>
           <div className="px-6 py-4 border-t border-border">
             <p className="text-xs text-gray-500">Vendor Management Platform</p>
-            <p className="text-xs text-gray-400 mt-1">v2.0 Enterprise Edition</p>
+            <p className="text-xs text-gray-400 mt-1">
+              v2.0 Enterprise Edition
+            </p>
           </div>
         </div>
       </aside>
