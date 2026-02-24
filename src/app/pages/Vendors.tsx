@@ -279,7 +279,7 @@ export function Vendors() {
                             {vendor.vendor_name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {vendor.vendor_code ?? '—'}
+                            {vendor.contact_person ?? '—'}
                           </div>
                         </div>
                       </td>
