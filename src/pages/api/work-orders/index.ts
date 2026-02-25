@@ -2,11 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   getWorkOrders,
   createWorkOrder,
-  getWorkOrderCount,
 } from '../../../lib/supabase/repos/workOrders.repo';
 import {
   validateWorkOrderInput,
-  generateWorkOrderNumber,
   WorkOrderStatus,
 } from '../../../lib/domain/workOrders';
 
@@ -27,36 +25,28 @@ export default async function handler(
 
   // ─── POST ───────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
-    const { title, engagement_id, description } = req.body ?? {};
+    const { title, engagement_id, submission_deadline, notes } = req.body ?? {};
 
     // Validate input
     const validation = validateWorkOrderInput({
       title,
       engagement_id,
-      description,
+      submission_deadline,
     });
 
     if (!validation.valid) {
       return res.status(400).json({ errors: validation.errors });
     }
 
-    // Generate work order number
-    const { count, error: countError } = await getWorkOrderCount();
-
-    if (countError) {
-      return res.status(500).json({ error: countError });
-    }
-
-    const workOrderNumber = generateWorkOrderNumber(count);
-
     // Create the work order
     const { data, error } = await createWorkOrder({
-      work_order_number: workOrderNumber,
+      org_id: '00000000-0000-0000-0000-000000000001',
       engagement_id,
       title,
-      description,
+      description: notes || null,
+      submission_deadline: submission_deadline || null,
+      notes: notes || null,
       status: WorkOrderStatus.Draft,
-      created_by: '00000000-0000-0000-0000-000000000000', // placeholder – replace with auth user id
     });
 
     if (error) {

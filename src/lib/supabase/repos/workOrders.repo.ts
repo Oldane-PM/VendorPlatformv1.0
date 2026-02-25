@@ -27,7 +27,7 @@ export async function getWorkOrders(): Promise<{
   const { data, error } = await client
     .from('work_orders')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('work_order_number', { ascending: true });
 
   if (error) {
     return {
@@ -62,12 +62,14 @@ export async function getWorkOrderById(
 // ─── Mutations ──────────────────────────────────────────────────────────────
 
 export interface CreateWorkOrderRow {
-  work_order_number: string;
+  org_id: string;
   engagement_id: string;
   title: string;
-  description: string;
+  description: string | null;
+  submission_deadline: string | null;
+  notes: string | null;
   status: string;
-  created_by: string;
+  created_by?: string;
 }
 
 /**

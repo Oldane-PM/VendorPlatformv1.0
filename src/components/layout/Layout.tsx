@@ -72,7 +72,6 @@ export function Layout({ children }: LayoutProps) {
       label: 'Engagements',
       icon: Clipboard,
     },
-    { id: 'nav-rfqs', path: '/rfqs', label: 'RFQs', icon: FileCheck },
     {
       id: 'nav-work-orders',
       path: '/work-orders',

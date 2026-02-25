@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { Plus, FileCheck, Search, Filter, Loader2 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { CreateWorkOrderModal } from '../components/CreateWorkOrderModal';
@@ -7,13 +8,15 @@ import { CreateWorkOrderModal } from '../components/CreateWorkOrderModal';
 
 interface WorkOrder {
   id: string;
-  work_order_number: string;
-  engagement_id: string;
+  work_order_number: number;
+  engagement_id: string | null;
   title: string;
   description: string;
+  submission_deadline: string | null;
+  notes: string | null;
   status: string;
   created_at: string;
-  created_by: string;
+  created_by: string | null;
 }
 
 // ─── Status helpers ─────────────────────────────────────────────────────────
@@ -22,11 +25,11 @@ type BadgeStatus = 'draft' | 'open' | 'in-progress' | 'completed' | 'awarded';
 
 function toBadgeStatus(status: string): BadgeStatus {
   const map: Record<string, BadgeStatus> = {
-    Draft: 'draft',
-    Open: 'open',
-    'In Progress': 'in-progress',
-    Completed: 'completed',
-    Awarded: 'awarded',
+    draft: 'draft',
+    open: 'open',
+    in_progress: 'in-progress',
+    completed: 'completed',
+    awarded: 'awarded',
   };
   return map[status] ?? 'draft';
 }
@@ -44,8 +47,16 @@ function formatDate(dateStr: string) {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
+interface EngagementLookup {
+  id: string;
+  engagement_number: number;
+  title: string;
+}
+
 export function WorkOrdersPage() {
+  const router = useRouter();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [engagements, setEngagements] = useState<EngagementLookup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,14 +69,22 @@ export function WorkOrdersPage() {
     setFetchError(null);
 
     try {
-      const res = await fetch('/api/work-orders');
+      const [woRes, engRes] = await Promise.all([
+        fetch('/api/work-orders'),
+        fetch('/api/engagements'),
+      ]);
 
-      if (!res.ok) {
+      if (!woRes.ok) {
         throw new Error('Failed to load work orders.');
       }
 
-      const json = await res.json();
-      setWorkOrders(json.data ?? []);
+      const woJson = await woRes.json();
+      setWorkOrders(woJson.data ?? []);
+
+      if (engRes.ok) {
+        const engJson = await engRes.json();
+        setEngagements(engJson.data ?? []);
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -75,16 +94,27 @@ export function WorkOrdersPage() {
     }
   }, []);
 
+  // ── Engagement lookup helper ───────────────────────────────────────────
+  const getEngagementLabel = (engId: string | null) => {
+    if (!engId) return '—';
+    const eng = engagements.find((e) => e.id === engId);
+    if (eng) {
+      return `ENG-${String(eng.engagement_number).padStart(4, '0')} — ${eng.title}`;
+    }
+    return engId.substring(0, 8) + '…';
+  };
+
   useEffect(() => {
     fetchWorkOrders();
   }, [fetchWorkOrders]);
 
   // ── Filter logic ───────────────────────────────────────────────────────
   const filteredWorkOrders = workOrders.filter((wo) => {
+    const search = searchTerm.toLowerCase();
     const matchesSearch =
-      wo.work_order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wo.engagement_id.toLowerCase().includes(searchTerm.toLowerCase());
+      String(wo.work_order_number).toLowerCase().includes(search) ||
+      wo.title.toLowerCase().includes(search) ||
+      (wo.engagement_id ?? '').toLowerCase().includes(search);
 
     const matchesStatus = statusFilter === 'all' || wo.status === statusFilter;
 
@@ -136,11 +166,11 @@ export function WorkOrdersPage() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white text-sm"
               >
                 <option value="all">All Status</option>
-                <option value="Draft">Draft</option>
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Awarded">Awarded</option>
+                <option value="draft">Draft</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="awarded">Awarded</option>
               </select>
             </div>
           </div>
@@ -210,7 +240,10 @@ export function WorkOrdersPage() {
                       Engagement ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Title
+                      Engagement Title
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Submissions
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
@@ -223,7 +256,7 @@ export function WorkOrdersPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredWorkOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
+                      <td colSpan={6} className="px-6 py-12 text-center">
                         <p className="text-gray-500">
                           No work orders match your filters
                         </p>
@@ -233,36 +266,52 @@ export function WorkOrdersPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredWorkOrders.map((wo) => (
-                      <tr
-                        key={wo.id}
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-mono font-medium text-gray-900">
-                            {wo.work_order_number}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-medium text-blue-600">
-                            {wo.engagement_id}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-900">
-                            {wo.title}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={toBadgeStatus(wo.status)} />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-600">
-                            {formatDate(wo.created_at)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    filteredWorkOrders.map((wo) => {
+                      const eng = engagements.find(
+                        (e) => e.id === wo.engagement_id
+                      );
+                      const engCode = eng
+                        ? `ENG-${String(eng.engagement_number).padStart(4, '0')}`
+                        : '—';
+                      const engTitle = eng ? eng.title : '—';
+
+                      return (
+                        <tr
+                          key={wo.id}
+                          onClick={() => router.push(`/work-orders/${wo.id}`)}
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-medium text-gray-900">
+                              WO-{String(wo.work_order_number).padStart(4, '0')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-medium text-blue-600">
+                              {engCode}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-900">
+                              {engTitle}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+                              0
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <StatusBadge status={toBadgeStatus(wo.status)} />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-600">
+                              {formatDate(wo.created_at)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

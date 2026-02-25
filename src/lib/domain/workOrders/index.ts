@@ -4,11 +4,11 @@
 
 // ─── Status Enum ────────────────────────────────────────────────────────────
 export enum WorkOrderStatus {
-  Draft = 'Draft',
-  Open = 'Open',
-  InProgress = 'In Progress',
-  Completed = 'Completed',
-  Awarded = 'Awarded',
+  Draft = 'draft',
+  Open = 'open',
+  InProgress = 'in_progress',
+  Completed = 'completed',
+  Awarded = 'awarded',
 }
 
 // ─── Entity ─────────────────────────────────────────────────────────────────
@@ -17,7 +17,9 @@ export interface WorkOrder {
   work_order_number: string;
   engagement_id: string;
   title: string;
-  description: string;
+  description: string | null;
+  submission_deadline: string | null;
+  notes: string | null;
   status: WorkOrderStatus;
   created_at: string;
   created_by: string;
@@ -27,7 +29,8 @@ export interface WorkOrder {
 export interface CreateWorkOrderInput {
   title: string;
   engagement_id: string;
-  description: string;
+  submission_deadline: string;
+  notes?: string;
 }
 
 // ─── Validation ─────────────────────────────────────────────────────────────
@@ -49,8 +52,11 @@ export function validateWorkOrderInput(
     errors.push('Engagement ID is required.');
   }
 
-  if (!input.description || input.description.trim().length === 0) {
-    errors.push('Description is required.');
+  if (
+    !input.submission_deadline ||
+    input.submission_deadline.trim().length === 0
+  ) {
+    errors.push('Submission deadline is required.');
   }
 
   return { valid: errors.length === 0, errors };
