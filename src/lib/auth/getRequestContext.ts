@@ -77,7 +77,10 @@ export async function getRequestContext(
 
     if (org) {
       console.log('[getRequestContext] DEV bypass — org:', org.id);
-      return { userId: 'dev-user', orgId: org.id as string };
+      return {
+        userId: '00000000-0000-0000-0000-000000000000',
+        orgId: org.id as string,
+      };
     }
 
     // Fallback: grab org_id from the vendors table
@@ -97,7 +100,10 @@ export async function getRequestContext(
         '[getRequestContext] DEV bypass — vendor org_id:',
         vendorRow.org_id
       );
-      return { userId: 'dev-user', orgId: vendorRow.org_id as string };
+      return {
+        userId: '00000000-0000-0000-0000-000000000000',
+        orgId: vendorRow.org_id as string,
+      };
     }
 
     console.error('[getRequestContext] No org found anywhere');
