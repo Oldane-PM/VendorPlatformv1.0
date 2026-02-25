@@ -9,8 +9,11 @@ import {
   FileCheck,
   LayoutGrid,
   LayoutList,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { VendorEngagementCard } from '../components/VendorEngagementCard';
+import { useVendorEngagements } from '@/lib/hooks/useVendorEngagements';
 
 // Milestone type
 interface Milestone {
@@ -47,226 +50,24 @@ interface VendorEngagement {
   invoices: Invoice[];
 }
 
-// Mock data - In real app, this would come from RFQ awards
-const mockVendorEngagements: VendorEngagement[] = [
-  {
-    vendorEngagementId: 'VE-0001',
-    engagementId: 'ENG-0001',
-    workOrderId: 'WO-0001',
-    vendorName: 'CloudTech Solutions',
-    projectTitle: 'Cloud Infrastructure Modernization',
-    awardAmount: 285000,
-    status: 'Active',
-    startDate: '2026-02-20',
-    department: 'IT Operations',
-    awardedBy: 'Sarah Johnson',
-    decisionReason: 'Strong proposal with proven AWS expertise and competitive pricing',
-    milestones: [
-      {
-        id: 'M-0001',
-        activity: 'Initial Setup',
-        dueDate: '2026-03-01',
-        amount: 50000,
-        status: 'Pending',
-      },
-      {
-        id: 'M-0002',
-        activity: 'Configuration',
-        dueDate: '2026-04-01',
-        amount: 100000,
-        status: 'In Progress',
-      },
-      {
-        id: 'M-0003',
-        activity: 'Testing',
-        dueDate: '2026-05-01',
-        amount: 50000,
-        status: 'Submitted',
-      },
-      {
-        id: 'M-0004',
-        activity: 'Deployment',
-        dueDate: '2026-06-01',
-        amount: 85000,
-        status: 'Approved',
-      },
-    ],
-    invoices: [
-      {
-        id: 'INV-0001',
-        amount: 50000,
-        status: 'Draft',
-        createdDate: '2026-03-01',
-      },
-      {
-        id: 'INV-0002',
-        amount: 100000,
-        status: 'Submitted',
-        createdDate: '2026-04-01',
-      },
-      {
-        id: 'INV-0003',
-        amount: 50000,
-        status: 'Approved',
-        createdDate: '2026-05-01',
-      },
-      {
-        id: 'INV-0004',
-        amount: 85000,
-        status: 'Paid',
-        createdDate: '2026-06-01',
-      },
-    ],
-  },
-  {
-    vendorEngagementId: 'VE-0002',
-    engagementId: 'ENG-0003',
-    workOrderId: 'WO-0005',
-    vendorName: 'SecureNet Systems',
-    projectTitle: 'Network Security Infrastructure Upgrade',
-    awardAmount: 450000,
-    status: 'In Progress',
-    startDate: '2026-01-15',
-    department: 'IT Security',
-    awardedBy: 'Michael Chen',
-    decisionReason: 'Best-in-class security credentials and comprehensive approach',
-    milestones: [
-      {
-        id: 'M-0005',
-        activity: 'Initial Assessment',
-        dueDate: '2026-02-01',
-        amount: 50000,
-        status: 'Pending',
-      },
-      {
-        id: 'M-0006',
-        activity: 'Configuration',
-        dueDate: '2026-03-01',
-        amount: 100000,
-        status: 'In Progress',
-      },
-      {
-        id: 'M-0007',
-        activity: 'Testing',
-        dueDate: '2026-04-01',
-        amount: 50000,
-        status: 'Submitted',
-      },
-      {
-        id: 'M-0008',
-        activity: 'Deployment',
-        dueDate: '2026-05-01',
-        amount: 250000,
-        status: 'Approved',
-      },
-    ],
-    invoices: [
-      {
-        id: 'INV-0005',
-        amount: 50000,
-        status: 'Draft',
-        createdDate: '2026-02-01',
-      },
-      {
-        id: 'INV-0006',
-        amount: 100000,
-        status: 'Submitted',
-        createdDate: '2026-03-01',
-      },
-      {
-        id: 'INV-0007',
-        amount: 50000,
-        status: 'Approved',
-        createdDate: '2026-04-01',
-      },
-      {
-        id: 'INV-0008',
-        amount: 250000,
-        status: 'Paid',
-        createdDate: '2026-05-01',
-      },
-    ],
-  },
-  {
-    vendorEngagementId: 'VE-0003',
-    engagementId: 'ENG-0006',
-    workOrderId: 'WO-0008',
-    vendorName: 'DataViz Analytics',
-    projectTitle: 'Business Intelligence Dashboard Implementation',
-    awardAmount: 125000,
-    status: 'Completed',
-    startDate: '2025-11-01',
-    endDate: '2026-02-01',
-    department: 'Finance',
-    awardedBy: 'Jennifer Lopez',
-    decisionReason: 'Lowest bid with proven track record in BI implementations',
-    milestones: [
-      {
-        id: 'M-0009',
-        activity: 'Initial Setup',
-        dueDate: '2025-11-15',
-        amount: 25000,
-        status: 'Pending',
-      },
-      {
-        id: 'M-0010',
-        activity: 'Configuration',
-        dueDate: '2025-12-15',
-        amount: 50000,
-        status: 'In Progress',
-      },
-      {
-        id: 'M-0011',
-        activity: 'Testing',
-        dueDate: '2026-01-15',
-        amount: 25000,
-        status: 'Submitted',
-      },
-      {
-        id: 'M-0012',
-        activity: 'Deployment',
-        dueDate: '2026-02-01',
-        amount: 25000,
-        status: 'Approved',
-      },
-    ],
-    invoices: [
-      {
-        id: 'INV-0009',
-        amount: 25000,
-        status: 'Draft',
-        createdDate: '2025-11-15',
-      },
-      {
-        id: 'INV-0010',
-        amount: 50000,
-        status: 'Submitted',
-        createdDate: '2025-12-15',
-      },
-      {
-        id: 'INV-0011',
-        amount: 25000,
-        status: 'Approved',
-        createdDate: '2026-01-15',
-      },
-      {
-        id: 'INV-0012',
-        amount: 25000,
-        status: 'Paid',
-        createdDate: '2026-02-01',
-      },
-    ],
-  },
-];
+// mock data removed, using live Supabase data now
 
 export function EngagementList() {
+  const {
+    vendorEngagements: rawData,
+    isLoading,
+    error,
+  } = useVendorEngagements();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [editingMilestone, setEditingMilestone] = useState<{ engagementId: string; milestoneId: string } | null>(null);
+  const [editingMilestone, setEditingMilestone] = useState<{
+    engagementId: string;
+    milestoneId: string;
+  } | null>(null);
   const [milestoneFormData, setMilestoneFormData] = useState({
     activity: '',
     dueDate: '',
@@ -274,15 +75,47 @@ export function EngagementList() {
     status: 'Pending' as Milestone['status'],
   });
 
-  const vendorEngagements = mockVendorEngagements;
-  const departments = Array.from(new Set(vendorEngagements.map((e) => e.department)));
+  // Map DTO to the component's expected format
+  const vendorEngagements: VendorEngagement[] = rawData.map((dto) => ({
+    vendorEngagementId: dto.vendor_engagement_id,
+    engagementId: dto.engagement_id,
+    workOrderId: dto.work_order_id,
+    vendorName: dto.vendor_name,
+    projectTitle: dto.project_title,
+    awardAmount: dto.award_amount,
+    status: (dto.status.charAt(0).toUpperCase() + dto.status.slice(1)) as any, // Capitalize for old style badge
+    startDate: dto.start_date || new Date().toISOString(),
+    endDate: dto.end_date || undefined,
+    department: dto.department || 'Unassigned',
+    awardedBy: dto.awarded_by || 'System',
+    decisionReason: dto.decision_reason || '',
+    milestones: dto.milestones.map((m) => ({
+      id: m.id,
+      activity: m.activity,
+      dueDate: m.due_date,
+      amount: m.amount,
+      status: m.status as any,
+    })),
+    invoices: dto.invoices.map((inv) => ({
+      id: inv.id,
+      amount: inv.amount,
+      status: (inv.status.charAt(0).toUpperCase() + inv.status.slice(1)) as any,
+      createdDate: inv.created_at,
+    })),
+  }));
+
+  const departments = Array.from(
+    new Set(vendorEngagements.map((e) => e.department))
+  );
 
   const filteredEngagements = vendorEngagements
     .filter((eng) => {
       const matchesSearch =
         eng.projectTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
         eng.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        eng.vendorEngagementId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eng.vendorEngagementId
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         eng.engagementId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         eng.workOrderId.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -296,7 +129,9 @@ export function EngagementList() {
     })
     .sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+        return (
+          new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+        );
       } else {
         return b.awardAmount - a.awardAmount;
       }
@@ -340,6 +175,31 @@ export function EngagementList() {
   };
 
   const router = useRouter();
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">
+          Loading vendor engagements...
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-red-800 font-medium">
+            Error loading vendor engagements
+          </h3>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -409,7 +269,9 @@ export function EngagementList() {
           {/* View Toggle and Sort Options */}
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 font-medium">Sort by:</span>
+              <span className="text-sm text-gray-600 font-medium">
+                Sort by:
+              </span>
               <button
                 onClick={() => setSortBy('date')}
                 className={`text-sm px-3 py-1 rounded ${
@@ -473,7 +335,8 @@ export function EngagementList() {
               No vendor engagements yet
             </h3>
             <p className="text-gray-600 text-sm mb-6">
-              Vendor engagements are created automatically when a work order is awarded.
+              Vendor engagements are created automatically when a work order is
+              awarded.
             </p>
             <Link
               href="/rfqs"
@@ -489,7 +352,9 @@ export function EngagementList() {
           {filteredEngagements.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
               <div className="max-w-md mx-auto text-center">
-                <p className="text-gray-500">No engagements match your filters</p>
+                <p className="text-gray-500">
+                  No engagements match your filters
+                </p>
                 <p className="text-sm text-gray-400 mt-1">
                   Try adjusting your search or filter criteria
                 </p>
@@ -498,15 +363,20 @@ export function EngagementList() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredEngagements.map((engagement) => (
-                <VendorEngagementCard key={engagement.vendorEngagementId} engagement={engagement} />
+                <VendorEngagementCard
+                  key={engagement.vendorEngagementId}
+                  engagement={engagement}
+                />
               ))}
             </div>
           )}
 
           {/* Results Count */}
           <div className="text-sm text-gray-600">
-            Showing <span className="font-medium">{filteredEngagements.length}</span> of{' '}
-            <span className="font-medium">{vendorEngagements.length}</span> vendor engagements
+            Showing{' '}
+            <span className="font-medium">{filteredEngagements.length}</span> of{' '}
+            <span className="font-medium">{vendorEngagements.length}</span>{' '}
+            vendor engagements
           </div>
         </>
       ) : (
@@ -553,7 +423,9 @@ export function EngagementList() {
                   {filteredEngagements.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-12 text-center">
-                        <p className="text-gray-500">No engagements match your filters</p>
+                        <p className="text-gray-500">
+                          No engagements match your filters
+                        </p>
                         <p className="text-sm text-gray-400 mt-1">
                           Try adjusting your search or filter criteria
                         </p>
@@ -563,7 +435,9 @@ export function EngagementList() {
                     filteredEngagements.map((engagement) => (
                       <tr
                         key={engagement.vendorEngagementId}
-                        onClick={() => router.push(`/engagements/${engagement.vendorEngagementId}`)}
+                        onClick={() =>
+                          router.push(`/engagements/${engagement.engagementId}`)
+                        }
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -637,8 +511,10 @@ export function EngagementList() {
 
           {/* Results Count */}
           <div className="text-sm text-gray-600">
-            Showing <span className="font-medium">{filteredEngagements.length}</span> of{' '}
-            <span className="font-medium">{vendorEngagements.length}</span> vendor engagements
+            Showing{' '}
+            <span className="font-medium">{filteredEngagements.length}</span> of{' '}
+            <span className="font-medium">{vendorEngagements.length}</span>{' '}
+            vendor engagements
           </div>
         </>
       )}

@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  getEngagement,
+  type EngagementDetailDto,
+} from '@/lib/domain/engagements/engagementsApiRepo';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -127,4 +131,52 @@ export function useEngagements(): UseEngagementsReturn {
     createEngagement,
     updateEngagement,
   };
+}
+
+// ─── Single-Engagement Detail Hook ──────────────────────────────────────────
+
+interface UseEngagementDetailReturn {
+  engagement: EngagementDetailDto | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
+export function useEngagementDetail(
+  id: string | undefined
+): UseEngagementDetailReturn {
+  const [engagement, setEngagement] = useState<EngagementDetailDto | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      setError(null);
+      const { data, error } = await getEngagement(id);
+      if (error) {
+        setError(error);
+        setEngagement(null);
+      } else {
+        setEngagement(data);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch engagement details');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      refetch();
+    } else {
+      setIsLoading(false);
+    }
+  }, [id, refetch]);
+
+  return { engagement, isLoading, error, refetch };
 }
