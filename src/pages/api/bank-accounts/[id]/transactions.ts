@@ -29,7 +29,6 @@ export default async function handler(
         vendor,
         fee_amount,
         exchange_rate,
-        balance_after,
         currency,
         receipt_uploaded,
         funding_source,
@@ -43,15 +42,35 @@ export default async function handler(
         return res.status(400).json({ error: 'type and amount are required' });
       }
 
+      // 1. Fetch current account to get balance
+      const account = await bankAccountsRepo.getBankAccountById(id);
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      const numAmount = parseFloat(amount) || 0;
+      const numFee = parseFloat(fee_amount) || 0;
+      const currentBalance = parseFloat(String(account.current_balance)) || 0;
+
+      // 2. Compute new balance based on transaction type
+      let newBalance: number;
+      if (type === 'Funding') {
+        newBalance = currentBalance + numAmount - numFee;
+      } else {
+        // Payment or Fee — amount should be negative or we subtract
+        newBalance = currentBalance + numAmount; // amount is already negative for payments
+      }
+
+      // 3. Create the transaction with correct balance_after
       const transaction = await bankAccountsRepo.createTransaction({
         bank_account_id: id,
         date,
         type,
         vendor,
-        amount,
-        fee_amount,
+        amount: numAmount,
+        fee_amount: numFee,
         exchange_rate,
-        balance_after,
+        balance_after: newBalance,
         currency,
         receipt_uploaded,
         funding_source,
@@ -59,6 +78,16 @@ export default async function handler(
         reference_number,
         notes,
       });
+
+      // 4. Update the account balance (and last_funding for Funding transactions)
+      const updatePayload: Record<string, unknown> = {
+        current_balance: newBalance,
+      };
+      if (type === 'Funding') {
+        updatePayload.last_funding =
+          date || new Date().toISOString().split('T')[0];
+      }
+      await bankAccountsRepo.updateBankAccount(id, updatePayload);
 
       return res.status(201).json({ transaction });
     }
