@@ -1,6 +1,5 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { usePlatform } from '../contexts/PlatformContext';
 import { useState } from 'react';
 import {
   ArrowLeft,
@@ -16,19 +15,54 @@ import {
   X,
   Clock,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
+import { useEngagementDetail } from '@/lib/hooks/useEngagements';
+import type { EngagementDetailDto } from '@/lib/domain/engagements/engagementsApiRepo';
 
-type TabType = 'overview' | 'workOrders' | 'documents' | 'approvals' | 'financials' | 'activity';
+type TabType =
+  | 'overview'
+  | 'workOrders'
+  | 'documents'
+  | 'approvals'
+  | 'financials'
+  | 'activity';
 
 export function EngagementDetail() {
   const router = useRouter();
   const id = router.query.engagementId as string | undefined;
-  const { getEngagement, deleteEngagement } = usePlatform();
+  const { engagement, isLoading, error } = useEngagementDetail(id);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-  const engagement = id ? getEngagement(id) : undefined;
+  // ── Loading state ─────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <p className="text-sm text-gray-500">Loading engagement…</p>
+      </div>
+    );
+  }
 
+  // ── Error state ───────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+        <Link
+          href="/engagements"
+          className="text-blue-600 hover:text-blue-700 mt-4 inline-block"
+        >
+          Back to Engagements
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Not found ─────────────────────────────────────────────────────
   if (!engagement) {
     return (
       <div className="text-center py-12">
@@ -44,8 +78,10 @@ export function EngagementDetail() {
   }
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete "${engagement.title}"?`)) {
-      deleteEngagement(engagement.id);
+    if (
+      window.confirm(`Are you sure you want to delete "${engagement.title}"?`)
+    ) {
+      // TODO: wire to API delete
       router.push('/engagements');
     }
   };
@@ -95,41 +131,51 @@ export function EngagementDetail() {
                   {engagement.title}
                 </h1>
                 <p className="text-sm text-gray-500 mt-1 font-mono">
-                  {engagement.id}
+                  ENG-{String(engagement.engagement_number).padStart(4, '0')}
                 </p>
               </div>
-              <StatusBadge status={engagement.status} />
+              <StatusBadge status={engagement.status as any} />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Vendor</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  Vendor
+                </p>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {engagement.vendorName}
+                  {engagement.vendor_name || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Department</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  Department
+                </p>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {engagement.department}
+                  {engagement.department || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Total Value</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  Total Value
+                </p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  ${engagement.totalValue.toLocaleString()}
+                  ${(engagement.total_value ?? 0).toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Assigned Approver</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  Assigned Approver
+                </p>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {engagement.assignedApprover}
+                  {engagement.assigned_approver || '—'}
                 </p>
               </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-700">{engagement.description}</p>
+              <p className="text-sm text-gray-700">
+                {engagement.description || 'No description provided.'}
+              </p>
             </div>
           </div>
 
@@ -174,10 +220,18 @@ export function EngagementDetail() {
 
         <div className="p-6">
           {activeTab === 'overview' && <OverviewTab engagement={engagement} />}
-          {activeTab === 'workOrders' && <WorkOrdersTab engagement={engagement} />}
-          {activeTab === 'documents' && <DocumentsTab engagement={engagement} />}
-          {activeTab === 'approvals' && <ApprovalsTab engagement={engagement} />}
-          {activeTab === 'financials' && <FinancialsTab engagement={engagement} />}
+          {activeTab === 'workOrders' && (
+            <WorkOrdersTab engagement={engagement} />
+          )}
+          {activeTab === 'documents' && (
+            <DocumentsTab engagement={engagement} />
+          )}
+          {activeTab === 'approvals' && (
+            <ApprovalsTab engagement={engagement} />
+          )}
+          {activeTab === 'financials' && (
+            <FinancialsTab engagement={engagement} />
+          )}
           {activeTab === 'activity' && <ActivityTab engagement={engagement} />}
         </div>
       </div>
@@ -185,7 +239,11 @@ export function EngagementDetail() {
   );
 }
 
-function OverviewTab({ engagement }: { engagement: any }) {
+function OverviewTab({ engagement }: { engagement: EngagementDetailDto }) {
+  const awardedCount = engagement.rfqs.filter(
+    (r) => r.decision === 'selected'
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Summary */}
@@ -217,7 +275,7 @@ function OverviewTab({ engagement }: { engagement: any }) {
             <div>
               <p className="text-sm text-gray-600">Vendor Engagements</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">
-                {engagement.workOrders.filter((wo: any) => wo.status === 'awarded').length}
+                {awardedCount}
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-purple-600" />
@@ -234,7 +292,7 @@ function OverviewTab({ engagement }: { engagement: any }) {
           <div>
             <p className="text-sm text-gray-500">Created Date</p>
             <p className="text-sm font-medium text-gray-900 mt-1">
-              {new Date(engagement.createdDate).toLocaleDateString('en-US', {
+              {new Date(engagement.created_at).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -242,43 +300,53 @@ function OverviewTab({ engagement }: { engagement: any }) {
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Last Updated</p>
+            <p className="text-sm text-gray-500">Start Date</p>
             <p className="text-sm font-medium text-gray-900 mt-1">
-              {new Date(engagement.lastUpdated).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {engagement.start_date
+                ? new Date(engagement.start_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : '—'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Linked Vendor Profile */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Linked Vendor Profile
-        </h3>
-        <Link
-          href={`/vendors/${engagement.vendorId}`}
-          className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">{engagement.vendorName}</p>
-              <p className="text-sm text-gray-600 mt-1">View full vendor profile</p>
+      {engagement.vendor_id && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Linked Vendor Profile
+          </h3>
+          <Link
+            href={`/vendors/${engagement.vendor_id}`}
+            className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {engagement.vendor_name}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  View full vendor profile
+                </p>
+              </div>
+              <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
             </div>
-            <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
-          </div>
-        </Link>
-      </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
 
-function WorkOrdersTab({ engagement }: { engagement: any }) {
+function WorkOrdersTab({ engagement }: { engagement: EngagementDetailDto }) {
   const handleAIRiskAnalysis = () => {
-    alert('AI Risk Analysis\n\nAnalyzing all RFQs for:\n• Price anomalies\n• Hidden costs\n• Vendor reliability\n• Contract compliance\n• Delivery feasibility\n• Payment terms risks');
+    alert(
+      'AI Risk Analysis\n\nAnalyzing all RFQs for:\n• Price anomalies\n• Hidden costs\n• Vendor reliability\n• Contract compliance\n• Delivery feasibility\n• Payment terms risks'
+    );
   };
 
   return (
@@ -288,7 +356,7 @@ function WorkOrdersTab({ engagement }: { engagement: any }) {
           Request for Quotations
         </h3>
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={handleAIRiskAnalysis}
             className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all text-sm font-medium shadow-sm"
           >
@@ -311,22 +379,30 @@ function WorkOrdersTab({ engagement }: { engagement: any }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {engagement.rfqs.map((rfq: any) => (
-            <div key={rfq.id} className="bg-white border border-gray-200 rounded-lg p-6">
+          {engagement.rfqs.map((rfq) => (
+            <div
+              key={rfq.id}
+              className="bg-white border border-gray-200 rounded-lg p-6"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h4 className="font-medium text-gray-900">{rfq.vendorName}</h4>
+                  <h4 className="font-medium text-gray-900">
+                    {rfq.vendor_name}
+                  </h4>
                   <p className="text-sm text-gray-500 mt-1">
-                    Submitted {new Date(rfq.submittedDate).toLocaleDateString()}
+                    Submitted{' '}
+                    {rfq.submitted_date
+                      ? new Date(rfq.submitted_date).toLocaleDateString()
+                      : '—'}
                   </p>
                 </div>
-                <StatusBadge status={rfq.decision} />
+                <StatusBadge status={rfq.decision as any} />
               </div>
 
               {/* Line Items */}
               <div className="space-y-2 mb-4">
-                {rfq.lineItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between text-sm">
+                {rfq.line_items.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
                     <span className="text-gray-700">
                       {item.description} (x{item.quantity})
                     </span>
@@ -341,11 +417,15 @@ function WorkOrdersTab({ engagement }: { engagement: any }) {
               <div className="border-t border-gray-200 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">${rfq.subtotal.toLocaleString()}</span>
+                  <span className="font-medium">
+                    ${rfq.subtotal.toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Taxes</span>
-                  <span className="font-medium">${rfq.taxes.toLocaleString()}</span>
+                  <span className="font-medium">
+                    ${rfq.taxes.toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total</span>
@@ -353,12 +433,16 @@ function WorkOrdersTab({ engagement }: { engagement: any }) {
                 </div>
               </div>
 
-              {rfq.aiRiskFlag && rfq.aiRiskFlag !== 'None' && (
+              {rfq.ai_risk_flag && rfq.ai_risk_flag !== 'None' && (
                 <div className="mt-4 p-3 bg-gradient-to-br from-red-50 to-orange-50 border border-red-100 rounded-lg flex items-start">
                   <AlertTriangle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-red-900">AI Risk Flag</p>
-                    <p className="text-sm text-red-700 mt-1">{rfq.aiRiskFlag}</p>
+                    <p className="text-sm font-medium text-red-900">
+                      AI Risk Flag
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      {rfq.ai_risk_flag}
+                    </p>
                   </div>
                 </div>
               )}
@@ -370,7 +454,7 @@ function WorkOrdersTab({ engagement }: { engagement: any }) {
   );
 }
 
-function DocumentsTab({ engagement }: { engagement: any }) {
+function DocumentsTab({ engagement }: { engagement: EngagementDetailDto }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -395,8 +479,11 @@ function DocumentsTab({ engagement }: { engagement: any }) {
       {/* Documents List */}
       {engagement.documents.length > 0 && (
         <div className="space-y-3">
-          {engagement.documents.map((doc: any) => (
-            <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          {engagement.documents.map((doc) => (
+            <div
+              key={doc.id}
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center">
@@ -404,17 +491,24 @@ function DocumentsTab({ engagement }: { engagement: any }) {
                     <h4 className="font-medium text-gray-900">{doc.name}</h4>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    {(doc.size / 1024 / 1024).toFixed(2)} MB • Uploaded by {doc.uploadedBy} on{' '}
-                    {new Date(doc.uploadedDate).toLocaleDateString()}
+                    {(doc.size / 1024 / 1024).toFixed(2)} MB • Uploaded by{' '}
+                    {doc.uploaded_by || 'Unknown'} on{' '}
+                    {doc.uploaded_date
+                      ? new Date(doc.uploaded_date).toLocaleDateString()
+                      : '—'}
                   </p>
 
-                  {doc.aiSummary && (
+                  {doc.ai_summary && (
                     <div className="mt-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
                       <div className="flex items-start">
                         <Sparkles className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-xs font-medium text-blue-900">AI Executive Summary</p>
-                          <p className="text-sm text-blue-700 mt-1">{doc.aiSummary}</p>
+                          <p className="text-xs font-medium text-blue-900">
+                            AI Executive Summary
+                          </p>
+                          <p className="text-sm text-blue-700 mt-1">
+                            {doc.ai_summary}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -438,89 +532,99 @@ function DocumentsTab({ engagement }: { engagement: any }) {
   );
 }
 
-function ApprovalsTab({ engagement }: { engagement: any }) {
+function ApprovalsTab({ engagement }: { engagement: EngagementDetailDto }) {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900">Approval Timeline</h3>
 
-      {/* Approval Timeline */}
-      <div className="relative">
-        {engagement.approvalSteps.map((step: any, index: number) => (
-          <div key={step.id} className="relative flex gap-4 pb-8">
-            {/* Timeline Line */}
-            {index < engagement.approvalSteps.length - 1 && (
-              <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200"></div>
-            )}
+      {engagement.approval_steps.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <CheckSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600">No approval steps configured</p>
+        </div>
+      ) : (
+        <div className="relative">
+          {engagement.approval_steps.map((step, index) => (
+            <div key={step.id} className="relative flex gap-4 pb-8">
+              {/* Timeline Line */}
+              {index < engagement.approval_steps.length - 1 && (
+                <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200"></div>
+              )}
 
-            {/* Status Icon */}
-            <div className="relative flex-shrink-0">
-              <div
-                className={`
-                w-8 h-8 rounded-full flex items-center justify-center
-                ${
-                  step.status === 'approved'
-                    ? 'bg-green-100'
-                    : step.status === 'rejected'
-                    ? 'bg-red-100'
-                    : step.status === 'pending'
-                    ? 'bg-yellow-100'
-                    : 'bg-gray-100'
-                }
-              `}
-              >
-                {step.status === 'approved' && (
-                  <Check className="w-5 h-5 text-green-600" />
+              {/* Status Icon */}
+              <div className="relative flex-shrink-0">
+                <div
+                  className={`
+                  w-8 h-8 rounded-full flex items-center justify-center
+                  ${
+                    step.status === 'approved'
+                      ? 'bg-green-100'
+                      : step.status === 'rejected'
+                        ? 'bg-red-100'
+                        : step.status === 'pending'
+                          ? 'bg-yellow-100'
+                          : 'bg-gray-100'
+                  }
+                `}
+                >
+                  {step.status === 'approved' && (
+                    <Check className="w-5 h-5 text-green-600" />
+                  )}
+                  {step.status === 'rejected' && (
+                    <X className="w-5 h-5 text-red-600" />
+                  )}
+                  {step.status === 'pending' && (
+                    <Clock className="w-5 h-5 text-yellow-600" />
+                  )}
+                </div>
+              </div>
+
+              {/* Step Content */}
+              <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-medium text-gray-900">
+                      {step.approver_name}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {step.approver_role}
+                    </p>
+                  </div>
+                  <StatusBadge status={step.status as any} />
+                </div>
+
+                {step.timestamp && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {new Date(step.timestamp).toLocaleString()}
+                  </p>
                 )}
-                {step.status === 'rejected' && (
-                  <X className="w-5 h-5 text-red-600" />
+
+                {step.comments && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded">
+                    <p className="text-sm text-gray-700">{step.comments}</p>
+                  </div>
                 )}
-                {step.status === 'pending' && (
-                  <Clock className="w-5 h-5 text-yellow-600" />
+
+                {step.escalated && (
+                  <div className="mt-2 flex items-center text-xs text-orange-600">
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    Escalated
+                  </div>
                 )}
               </div>
             </div>
-
-            {/* Step Content */}
-            <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">{step.approverName}</h4>
-                  <p className="text-sm text-gray-600">{step.approverRole}</p>
-                </div>
-                <StatusBadge status={step.status} />
-              </div>
-
-              {step.timestamp && (
-                <p className="text-xs text-gray-500 mt-2">
-                  {new Date(step.timestamp).toLocaleString()}
-                </p>
-              )}
-
-              {step.comments && (
-                <div className="mt-3 p-3 bg-gray-50 rounded">
-                  <p className="text-sm text-gray-700">{step.comments}</p>
-                </div>
-              )}
-
-              {step.escalated && (
-                <div className="mt-2 flex items-center text-xs text-orange-600">
-                  <AlertTriangle className="w-3 h-3 mr-1" />
-                  Escalated
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function FinancialsTab({ engagement }: { engagement: any }) {
-  // Count awarded vendor engagements
-  const awardedVendorEngagements = engagement.workOrders.filter((wo: any) => wo.status === 'awarded');
-  const totalAwardedValue = awardedVendorEngagements.reduce(
-    (sum: number, wo: any) => sum + (wo.awardedAmount || 0),
+function FinancialsTab({ engagement }: { engagement: EngagementDetailDto }) {
+  // Count RFQs with "selected" decision as awarded vendor engagements
+  const awardedRfqs = engagement.rfqs.filter((r) => r.decision === 'selected');
+  const totalAwardedValue = awardedRfqs.reduce(
+    (sum, r) => sum + (r.total || 0),
     0
   );
 
@@ -531,7 +635,7 @@ function FinancialsTab({ engagement }: { engagement: any }) {
         <div className="bg-blue-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Engagement Value</p>
           <p className="text-2xl font-semibold text-gray-900 mt-1">
-            ${engagement.totalValue.toLocaleString()}
+            ${(engagement.total_value ?? 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-green-50 rounded-lg p-4">
@@ -541,9 +645,9 @@ function FinancialsTab({ engagement }: { engagement: any }) {
           </p>
         </div>
         <div className="bg-purple-50 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Vendor Engagements</p>
+          <p className="text-sm text-gray-600">Invoices</p>
           <p className="text-2xl font-semibold text-gray-900 mt-1">
-            {awardedVendorEngagements.length}
+            {engagement.invoices.length}
           </p>
         </div>
       </div>
@@ -553,10 +657,13 @@ function FinancialsTab({ engagement }: { engagement: any }) {
         <div className="flex items-start gap-3">
           <DollarSign className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">Invoice Generation</h3>
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+              Invoice Generation
+            </h3>
             <p className="text-sm text-blue-700 mb-3">
-              Invoices are generated and managed through <strong>Vendor Engagements</strong> only.
-              Once a Work Order is awarded to a vendor, it becomes a Vendor Engagement where you can:
+              Invoices are generated and managed through{' '}
+              <strong>Vendor Engagements</strong> only. Once a Work Order is
+              awarded to a vendor, it becomes a Vendor Engagement where you can:
             </p>
             <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
               <li>Break down the project into milestones</li>
@@ -564,49 +671,39 @@ function FinancialsTab({ engagement }: { engagement: any }) {
               <li>Track payment progress</li>
               <li>Manage invoice approvals</li>
             </ul>
-            <div className="mt-4">
-              <Link
-                href="/engagements"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                View Vendor Engagements
-                <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-              </Link>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Awarded Work Orders */}
-      {awardedVendorEngagements.length > 0 && (
+      {/* Invoices Table */}
+      {engagement.invoices.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Awarded Work Orders (Vendor Engagements)</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Invoices</h3>
           <div className="space-y-3">
-            {awardedVendorEngagements.map((wo: any) => (
+            {engagement.invoices.map((inv) => (
               <div
-                key={wo.id}
+                key={inv.id}
                 className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-gray-900">{wo.vendorName}</h4>
-                      <StatusBadge status={wo.status} />
+                      <h4 className="font-medium text-gray-900">
+                        {inv.invoice_number}
+                      </h4>
+                      <StatusBadge status={inv.status as any} />
                     </div>
                     <p className="text-sm text-gray-600">
-                      Work Order ID: {wo.id}
+                      {inv.vendor_name} • Due{' '}
+                      {inv.due_date
+                        ? new Date(inv.due_date).toLocaleDateString()
+                        : '—'}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-semibold text-gray-900">
-                      ${(wo.awardedAmount || 0).toLocaleString()}
+                      ${(inv.amount ?? 0).toLocaleString()}
                     </p>
-                    <Link
-                      href="/engagements"
-                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline mt-1 inline-block"
-                    >
-                      Manage in Vendor Engagements →
-                    </Link>
                   </div>
                 </div>
               </div>
@@ -618,36 +715,46 @@ function FinancialsTab({ engagement }: { engagement: any }) {
   );
 }
 
-function ActivityTab({ engagement }: { engagement: any }) {
+function ActivityTab({ engagement }: { engagement: EngagementDetailDto }) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">Activity Log</h3>
-      <div className="space-y-3">
-        {engagement.activityLog.map((log: any) => (
-          <div key={log.id} className="flex gap-3">
-            <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
-            <div className="flex-1 bg-gray-50 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">{log.action}</p>
-                  <p className="text-sm text-gray-600 mt-1">{log.details}</p>
-                  {log.statusChange && (
-                    <span className="inline-block mt-2 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                      {log.statusChange}
-                    </span>
-                  )}
-                </div>
-                <div className="text-right flex-shrink-0 ml-4">
-                  <p className="text-xs text-gray-500">
-                    {new Date(log.timestamp).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{log.user}</p>
+
+      {engagement.activity_log.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600">No activity recorded yet</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {engagement.activity_log.map((log) => (
+            <div key={log.id} className="flex gap-3">
+              <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+              <div className="flex-1 bg-gray-50 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{log.action}</p>
+                    <p className="text-sm text-gray-600 mt-1">{log.details}</p>
+                    {log.status_change && (
+                      <span className="inline-block mt-2 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        {log.status_change}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <p className="text-xs text-gray-500">
+                      {new Date(log.timestamp).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {log.user_name}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
