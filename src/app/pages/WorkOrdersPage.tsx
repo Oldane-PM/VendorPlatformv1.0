@@ -57,6 +57,9 @@ export function WorkOrdersPage() {
   const router = useRouter();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [engagements, setEngagements] = useState<EngagementLookup[]>([]);
+  const [submissionCounts, setSubmissionCounts] = useState<
+    Record<string, number>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,12 +82,32 @@ export function WorkOrdersPage() {
       }
 
       const woJson = await woRes.json();
-      setWorkOrders(woJson.data ?? []);
+      const woList: WorkOrder[] = woJson.data ?? [];
+      setWorkOrders(woList);
 
       if (engRes.ok) {
         const engJson = await engRes.json();
         setEngagements(engJson.data ?? []);
       }
+
+      // Fetch submission counts for each work order
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        woList.map(async (wo) => {
+          try {
+            const res = await fetch(`/api/work-orders/${wo.id}/submissions`);
+            if (res.ok) {
+              const json = await res.json();
+              counts[wo.id] = (json.data ?? []).length;
+            } else {
+              counts[wo.id] = 0;
+            }
+          } catch {
+            counts[wo.id] = 0;
+          }
+        })
+      );
+      setSubmissionCounts(counts);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -298,7 +321,7 @@ export function WorkOrdersPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
-                              0
+                              {submissionCounts[wo.id] ?? 0}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
