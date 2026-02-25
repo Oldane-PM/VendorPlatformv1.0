@@ -111,7 +111,10 @@ export interface CreateTransactionInput {
 /* ------------------------------------------------------------------ */
 
 /** List all bank accounts ordered by creation date. */
-export async function listBankAccounts(): Promise<BankAccountRow[]> {
+export async function listBankAccounts(): Promise<{
+  data: BankAccountRow[] | null;
+  error: string | null;
+}> {
   const supabase = createServerClient();
 
   const { data, error } = await supabase
@@ -121,10 +124,10 @@ export async function listBankAccounts(): Promise<BankAccountRow[]> {
 
   if (error) {
     console.error('[bankAccounts.repo.listBankAccounts]', error);
-    throw new Error(error.message);
+    return { data: null, error: error.message };
   }
 
-  return (data ?? []) as BankAccountRow[];
+  return { data: (data ?? []) as BankAccountRow[], error: null };
 }
 
 /** Fetch a single bank account by ID. */

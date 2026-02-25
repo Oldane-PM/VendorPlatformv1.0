@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CreditCard,
   Download,
@@ -9,8 +9,11 @@ import {
   FileText,
   ChevronRight,
   Calendar,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { PaymentReviewDrawer } from '../components/PaymentReviewDrawer';
+import { usePaymentProcessing } from '@/lib/hooks/usePaymentProcessing';
 
 interface InvoicePayment {
   id: string;
@@ -36,181 +39,73 @@ interface BankAccount {
 }
 
 export function PaymentProcessingPage() {
-  const [invoices, setInvoices] = useState<InvoicePayment[]>([
-    {
-      id: 'INV-2025-0089',
-      invoiceNumber: 'INV-2025-0089',
-      vendorName: 'CloudTech Solutions',
-      engagementId: 'VE-0001',
-      invoiceAmount: 45000.0,
-      currency: 'USD',
-      status: 'Pending Payment',
-      dueDate: '2025-03-15',
-      uploadedDate: '2025-02-15',
-      description: 'Q1 Cloud Infrastructure Services - February 2025',
-    },
-    {
-      id: 'INV-2025-0090',
-      invoiceNumber: 'INV-2025-0090',
-      vendorName: 'Azure Partners Inc',
-      engagementId: 'VE-0002',
-      invoiceAmount: 32000.0,
-      currency: 'USD',
-      status: 'Completed',
-      dueDate: '2025-02-28',
-      uploadedDate: '2025-02-10',
-      description: 'Azure Migration Services - January 2025',
-      paymentDetails: {
-        bankAccountId: 'BA-001',
-        paymentMethod: 'Wire Transfer',
-        paymentDate: '2025-02-15',
-        referenceNumber: 'TXN-2025-00145',
-        notes: 'Payment processed successfully',
-        fees: {
-          exchangeRateVariance: 0,
-          bankTransferFee: 25,
-          gctOnTransaction: 0,
-          otherFees: 0,
-        },
-        completedBy: 'Sarah Johnson',
-        completedDate: '2025-02-15',
-      },
-    },
-    {
-      id: 'INV-2025-0091',
-      invoiceNumber: 'INV-2025-0091',
-      vendorName: 'SecureIT Services',
-      engagementId: 'VE-0003',
-      invoiceAmount: 78000.0,
-      currency: 'USD',
-      status: 'Pending Payment',
-      dueDate: '2025-03-20',
-      uploadedDate: '2025-02-12',
-      description: 'Security Audit & Compliance Review Q1',
-    },
-    {
-      id: 'INV-2025-0092',
-      invoiceNumber: 'INV-2025-0092',
-      vendorName: 'DataSync Corporation',
-      engagementId: 'VE-0004',
-      invoiceAmount: 15500.0,
-      currency: 'USD',
-      status: 'Draft',
-      dueDate: '2025-03-10',
-      uploadedDate: '2025-02-14',
-      description: 'Data Integration Services - Monthly',
-    },
-    {
-      id: 'INV-2025-0093',
-      invoiceNumber: 'INV-2025-0093',
-      vendorName: 'Marketing Pros Agency',
-      engagementId: 'VE-0005',
-      invoiceAmount: 22000.0,
-      currency: 'USD',
-      status: 'Pending Payment',
-      dueDate: '2025-03-01',
-      uploadedDate: '2025-02-08',
-      description: 'Digital Marketing Campaign - February',
-    },
-    {
-      id: 'INV-2025-0094',
-      invoiceNumber: 'INV-2025-0094',
-      vendorName: 'LegalTech Solutions',
-      engagementId: 'VE-0006',
-      invoiceAmount: 35000.0,
-      currency: 'USD',
-      status: 'Completed',
-      dueDate: '2025-02-25',
-      uploadedDate: '2025-02-05',
-      description: 'Legal Consulting Services - January',
-      paymentDetails: {
-        bankAccountId: 'BA-001',
-        paymentMethod: "Manager's Check",
-        paymentDate: '2025-02-12',
-        referenceNumber: 'CHK-2025-00089',
-        notes: 'Check delivered',
-        fees: {
-          exchangeRateVariance: 0,
-          bankTransferFee: 0,
-          gctOnTransaction: 0,
-          otherFees: 0,
-        },
-        completedBy: 'Michael Chen',
-        completedDate: '2025-02-12',
-      },
-    },
-    {
-      id: 'INV-2025-0095',
-      invoiceNumber: 'INV-2025-0095',
-      vendorName: 'Office Supplies Co',
-      engagementId: 'VE-0007',
-      invoiceAmount: 1850.0,
-      currency: 'USD',
-      status: 'Pending Payment',
-      dueDate: '2025-02-28',
-      uploadedDate: '2025-02-16',
-      description: 'Office Supplies - February Batch',
-    },
-    {
-      id: 'INV-2025-0096',
-      invoiceNumber: 'INV-2025-0096',
-      vendorName: 'CloudTech Solutions',
-      engagementId: 'VE-0001',
-      invoiceAmount: 52000.0,
-      currency: 'USD',
-      status: 'Pending Payment',
-      dueDate: '2025-03-25',
-      uploadedDate: '2025-02-17',
-      description: 'Q1 Cloud Infrastructure Services - March 2025',
-    },
-  ]);
+  const {
+    items: rawItems,
+    summary,
+    bankAccounts: rawBankAccounts,
+    isLoading,
+    error,
+    selectedItemDetail,
+    isDetailLoading,
+    detailError,
+    fetchDetail,
+    markAsPaid,
+  } = usePaymentProcessing();
 
-  const [bankAccounts] = useState<BankAccount[]>([
-    {
-      id: 'BA-001',
-      bankName: 'National Commercial Bank',
-      accountName: 'Operations Account',
-      accountNumber: '123456784582',
-      currentBalance: 450000,
-      currency: 'USD',
-    },
-    {
-      id: 'BA-002',
-      bankName: 'Scotiabank Jamaica',
-      accountName: 'Payroll Account',
-      accountNumber: '987654327293',
-      currentBalance: 125000,
-      currency: 'USD',
-    },
-    {
-      id: 'BA-003',
-      bankName: 'Jamaica National Bank',
-      accountName: 'Reserve Account',
-      accountNumber: '456789121456',
-      currentBalance: 800000,
-      currency: 'USD',
-    },
-  ]);
+  // Map to component types
+  const invoices: InvoicePayment[] = useMemo(() => {
+    return rawItems.map((item) => {
+      let uiStatus: 'Pending Payment' | 'Completed' | 'Draft' = 'Draft';
+      if (item.status === 'paid') uiStatus = 'Completed';
+      else if (['approved', 'scheduled', 'submitted'].includes(item.status)) {
+        uiStatus = 'Pending Payment';
+      }
+
+      return {
+        id: item.id,
+        invoiceNumber: item.invoice_number,
+        vendorName: item.vendor_name,
+        engagementId: item.engagement_id,
+        invoiceAmount: item.amount,
+        currency: 'USD', // defaulting for now, could be added to schema later
+        status: uiStatus,
+        dueDate: item.due_date || '',
+        uploadedDate: item.submitted_date || item.created_at,
+        description: `Invoice ${item.invoice_number}`,
+      };
+    });
+  }, [rawItems]);
+
+  const bankAccounts: BankAccount[] = useMemo(() => {
+    return rawBankAccounts.map((account) => ({
+      id: account.id,
+      bankName: account.bank_name,
+      accountName: account.account_name,
+      accountNumber: `******${account.last_four_digits}`,
+      currentBalance: account.current_balance,
+      currency: account.currency,
+    }));
+  }, [rawBankAccounts]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [vendorFilter, setVendorFilter] = useState<string>('All');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('All');
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoicePayment | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoicePayment | null>(
+    null
+  );
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Calculate summary metrics
-  const totalPendingAmount = invoices
-    .filter((inv) => inv.status === 'Pending Payment')
-    .reduce((sum, inv) => sum + inv.invoiceAmount, 0);
-  const pendingCount = invoices.filter((inv) => inv.status === 'Pending Payment').length;
-  const completedCount = invoices.filter((inv) => inv.status === 'Completed').length;
-  const totalProcessed = invoices
-    .filter((inv) => inv.status === 'Completed')
-    .reduce((sum, inv) => sum + inv.invoiceAmount, 0);
+  // Summary Metrics defaulting
+  const totalPendingAmount = summary?.totalPendingAmount || 0;
+  const pendingCount = summary?.pendingCount || 0;
+  const completedCount = summary?.completedCount || 0;
+  const totalProcessed = summary?.totalProcessedAmount || 0;
 
   // Get unique vendors
-  const uniqueVendors = Array.from(new Set(invoices.map((inv) => inv.vendorName)));
+  const uniqueVendors = Array.from(
+    new Set(invoices.map((inv) => inv.vendorName))
+  );
 
   // Filter invoices
   const filteredInvoices = invoices.filter((invoice) => {
@@ -219,8 +114,10 @@ export function PaymentProcessingPage() {
       invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.engagementId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'All' || invoice.status === statusFilter;
-    const matchesVendor = vendorFilter === 'All' || invoice.vendorName === vendorFilter;
+    const matchesStatus =
+      statusFilter === 'All' || invoice.status === statusFilter;
+    const matchesVendor =
+      vendorFilter === 'All' || invoice.vendorName === vendorFilter;
 
     return matchesSearch && matchesStatus && matchesVendor;
   });
@@ -270,55 +167,74 @@ export function PaymentProcessingPage() {
   };
 
   // Handle row click
-  const handleRowClick = (invoice: InvoicePayment) => {
+  const handleRowClick = async (invoice: InvoicePayment) => {
     setSelectedInvoice(invoice);
     setIsDrawerOpen(true);
+    await fetchDetail(invoice.id);
   };
 
   // Handle mark as paid
-  const handleMarkAsPaid = (paymentData: any) => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === paymentData.invoiceId
-          ? {
-              ...inv,
-              status: 'Completed' as const,
-              paymentDetails: {
-                ...paymentData,
-                completedBy: 'Current User',
-                completedDate: new Date().toISOString().split('T')[0],
-              },
-            }
-          : inv
-      )
-    );
-    alert('✅ Payment marked as completed successfully!');
-    setIsDrawerOpen(false);
+  const handleMarkAsPaid = async (paymentData: any) => {
+    if (!selectedInvoice) return;
+    const success = await markAsPaid(selectedInvoice.id, {
+      bankAccountId: paymentData.bankAccountId,
+      paymentMethod: paymentData.paymentMethod,
+      paymentDate: paymentData.paymentDate,
+      referenceNumber: paymentData.referenceNumber,
+      notes: paymentData.notes,
+      amount: selectedInvoice.invoiceAmount,
+      fees: paymentData.fees,
+    });
+
+    if (success) {
+      alert('✅ Payment marked as completed successfully!');
+      setIsDrawerOpen(false);
+    } else {
+      alert('❌ Failed to mark as completed.');
+    }
   };
 
   // Handle save draft
   const handleSaveDraft = (paymentData: any) => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === paymentData.invoiceId
-          ? {
-              ...inv,
-              status: 'Draft' as const,
-              paymentDetails: paymentData,
-            }
-          : inv
-      )
-    );
-    alert('💾 Payment draft saved successfully!');
+    // Draft functionality would ideally call another mutation in the hook
+    // Let's stub it for now with an alert since this was mock UI state previously
+    alert('💾 Payment draft save is not fully implemented in the backend yet.');
     setIsDrawerOpen(false);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">Loading payment data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-red-800 font-medium">
+            Error loading payment data
+          </h3>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Payment Processing</h1>
-        <p className="text-gray-500 mt-1">Review and execute vendor invoice payments</p>
+        <h1 className="text-3xl font-semibold text-gray-900">
+          Payment Processing
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Review and execute vendor invoice payments
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -343,7 +259,9 @@ export function PaymentProcessingPage() {
               <Clock className="w-5 h-5 text-blue-600" />
             </div>
           </div>
-          <p className="text-2xl font-semibold text-gray-900 mb-1">{pendingCount}</p>
+          <p className="text-2xl font-semibold text-gray-900 mb-1">
+            {pendingCount}
+          </p>
           <p className="text-sm text-gray-500">Invoices Awaiting Payment</p>
         </div>
 
@@ -354,7 +272,9 @@ export function PaymentProcessingPage() {
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             </div>
           </div>
-          <p className="text-2xl font-semibold text-gray-900 mb-1">{completedCount}</p>
+          <p className="text-2xl font-semibold text-gray-900 mb-1">
+            {completedCount}
+          </p>
           <p className="text-sm text-gray-500">Completed This Month</p>
         </div>
 
@@ -391,7 +311,9 @@ export function PaymentProcessingPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">Filters:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Filters:
+              </span>
             </div>
 
             {/* Status Filter */}
@@ -475,10 +397,14 @@ export function PaymentProcessingPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm text-gray-900">{invoice.vendorName}</span>
+                    <span className="text-sm text-gray-900">
+                      {invoice.vendorName}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-blue-600">{invoice.engagementId}</span>
+                    <span className="text-sm font-mono text-blue-600">
+                      {invoice.engagementId}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-semibold text-gray-900">
@@ -486,7 +412,9 @@ export function PaymentProcessingPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-700">{invoice.currency}</span>
+                    <span className="text-sm text-gray-700">
+                      {invoice.currency}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -501,11 +429,15 @@ export function PaymentProcessingPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">{formatDate(invoice.dueDate)}</span>
+                      <span className="text-sm text-gray-700">
+                        {formatDate(invoice.dueDate)}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-500">{formatDate(invoice.uploadedDate)}</span>
+                    <span className="text-sm text-gray-500">
+                      {formatDate(invoice.uploadedDate)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -520,7 +452,9 @@ export function PaymentProcessingPage() {
         {filteredInvoices.length === 0 && (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No invoices found matching your criteria</p>
+            <p className="text-gray-500">
+              No invoices found matching your criteria
+            </p>
           </div>
         )}
       </div>
@@ -531,6 +465,8 @@ export function PaymentProcessingPage() {
         onClose={() => setIsDrawerOpen(false)}
         invoice={selectedInvoice}
         bankAccounts={bankAccounts}
+        paymentDetail={selectedItemDetail}
+        isDetailLoading={isDetailLoading}
         onMarkAsPaid={handleMarkAsPaid}
         onSaveDraft={handleSaveDraft}
       />

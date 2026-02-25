@@ -13,7 +13,11 @@ export default async function handler(
 ) {
   try {
     if (req.method === 'GET') {
-      const accounts = await bankAccountsRepo.listBankAccounts();
+      const { data: accounts, error } =
+        await bankAccountsRepo.listBankAccounts();
+      if (error) {
+        return res.status(500).json({ error });
+      }
       return res.status(200).json({ accounts });
     }
 
