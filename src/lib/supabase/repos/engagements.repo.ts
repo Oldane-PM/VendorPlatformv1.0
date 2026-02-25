@@ -266,7 +266,9 @@ export async function getEngagementById(
 }
 
 /**
- * Fetch all Vendor Engagements (awarded RFQs) and their related data.
+ * Fetch all Vendor Engagements from the vendor_engagements table
+ * (created by the award flow) and join with work_orders and engagements
+ * for human-readable IDs and correct project titles.
  */
 export async function listVendorEngagements(): Promise<{
   data: VendorEngagementRow[] | null;
@@ -274,101 +276,91 @@ export async function listVendorEngagements(): Promise<{
 }> {
   const sb = supabase();
 
-  // 1. Fetch all awarded RFQs (these represent Vendor Engagements)
-  const { data: awardedRfqs, error: rfqError } = await sb
-    .from('engagement_rfqs')
+  // 1. Fetch all vendor engagement records
+  const { data: veRows, error: veError } = await sb
+    .from('vendor_engagements')
     .select('*')
-    .eq('decision', 'selected')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
 
-  if (rfqError) {
-    console.error(
-      '[engagements.repo] listVendorEngagements RFQ error:',
-      rfqError
-    );
+  if (veError) {
+    console.error('[engagements.repo] listVendorEngagements error:', veError);
     return {
       data: null,
-      error: rfqError.message ?? 'Failed to fetch awarded RFQs.',
+      error: veError.message ?? 'Failed to fetch vendor engagements.',
     };
   }
 
-  if (!awardedRfqs || awardedRfqs.length === 0) {
+  if (!veRows || veRows.length === 0) {
     return { data: [], error: null };
   }
 
-  const engagementIds = [
-    ...new Set(awardedRfqs.map((r: any) => r.engagement_id)),
+  // 2. Collect unique work_order_ids and engagement_ids to look up
+  const workOrderIds = [
+    ...new Set(veRows.map((v: any) => v.work_order_id).filter(Boolean)),
   ];
-  const rfqIds = awardedRfqs.map((r: any) => r.id);
+  const engagementIds = [
+    ...new Set(veRows.map((v: any) => v.engagement_id).filter(Boolean)),
+  ];
 
-  // 2. Fetch parent engagements, milestones, and invoices
-  const [engRes, milestoneRes, invoiceRes] = await Promise.all([
-    sb.from('engagements').select('*').in('id', engagementIds),
-    sb
-      .from('vendor_engagement_milestones')
-      .select('*')
-      .in('rfq_id', rfqIds)
-      .order('due_date'),
-    sb
-      .from('engagement_invoices')
-      .select('*')
-      .in('engagement_id', engagementIds)
-      .order('created_at'),
+  // 3. Fetch work orders and engagements for human-readable numbers / titles
+  const [woRes, engRes] = await Promise.all([
+    workOrderIds.length > 0
+      ? sb
+          .from('work_orders')
+          .select('id, work_order_number, title, engagement_id')
+          .in('id', workOrderIds)
+      : Promise.resolve({ data: [], error: null }),
+    engagementIds.length > 0
+      ? sb
+          .from('engagements')
+          .select(
+            'id, engagement_number, title, department, assigned_approver, start_date, end_date, status'
+          )
+          .in('id', engagementIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
-  if (engRes.error || milestoneRes.error || invoiceRes.error) {
-    console.error(
-      '[engagements.repo] Failed to fetch related data:',
-      engRes.error || milestoneRes.error || invoiceRes.error
-    );
-    return { data: null, error: 'Failed to fetch vendor engagement details.' };
-  }
+  // Build lookup maps
+  const woMap = new Map((woRes.data ?? []).map((wo: any) => [wo.id, wo]));
+  const engMap = new Map((engRes.data ?? []).map((e: any) => [e.id, e]));
 
-  const engagementsMap = new Map(
-    (engRes.data ?? []).map((e: any) => [e.id, e])
-  );
+  // 4. Construct VendorEngagementRow array with human-readable IDs
+  const results: VendorEngagementRow[] = veRows.map((ve: any, idx: number) => {
+    const wo = woMap.get(ve.work_order_id);
+    // Try the engagement_id from the vendor_engagement row first, fall back to work order's engagement_id
+    const engId = ve.engagement_id || wo?.engagement_id;
+    const eng = engId ? engMap.get(engId) : null;
 
-  const milestonesByRfq = new Map<string, MilestoneRow[]>();
-  for (const m of (milestoneRes.data ?? []) as MilestoneRow[]) {
-    const existing = milestonesByRfq.get(m.rfq_id) ?? [];
-    existing.push(m);
-    milestonesByRfq.set(m.rfq_id, existing);
-  }
+    // Human-readable numbers
+    const veNumber = `VE-${String(idx + 1).padStart(4, '0')}`;
+    const woNumber = wo
+      ? `WO-${String(wo.work_order_number).padStart(4, '0')}`
+      : ve.work_order_id;
+    const engNumber = eng
+      ? `ENG-${String(eng.engagement_number).padStart(4, '0')}`
+      : (ve.engagement_id ?? '—');
 
-  const invoicesByEng = new Map<string, InvoiceRow[]>();
-  for (const inv of (invoiceRes.data ?? []) as InvoiceRow[]) {
-    const existing = invoicesByEng.get(inv.engagement_id) ?? [];
-    existing.push(inv);
-    invoicesByEng.set(inv.engagement_id, existing);
-  }
-
-  // 3. Construct VendorEngagementRow array
-  const results: VendorEngagementRow[] = awardedRfqs.map((rfq: any) => {
-    const parentEng = engagementsMap.get(rfq.engagement_id);
-
-    // Fallbacks if parent engagement is missing (shouldn't happen with FK)
-    const title = parentEng?.title ?? 'Unknown Project';
-    const dept = parentEng?.department ?? null;
-    const awBy = parentEng?.assigned_approver ?? null;
-    const sDate = parentEng?.start_date ?? null;
-    const eDate = parentEng?.end_date ?? null;
-    const st = parentEng?.status ?? 'active';
+    // Project title: prefer engagement title, fall back to work order title, then vendor_engagement title
+    const projectTitle =
+      eng?.title ?? wo?.title ?? ve.title ?? 'Unknown Project';
 
     return {
-      vendor_engagement_id: rfq.id,
-      engagement_id: rfq.engagement_id,
-      work_order_id: rfq.id, // currently using rfq.id as the work order identifier
-      vendor_name: rfq.vendor_name,
-      project_title: title,
-      award_amount: rfq.total,
-      status: st,
-      start_date: sDate,
-      end_date: eDate,
-      department: dept,
-      awarded_by: awBy,
-      decision_reason: 'Awarded via platform', // Could be added to schema later
-      milestones: milestonesByRfq.get(rfq.id) ?? [],
-      invoices: invoicesByEng.get(rfq.engagement_id) ?? [],
+      vendor_engagement_id: veNumber,
+      engagement_id: engNumber,
+      engagement_uuid: engId ?? null,
+      work_order_id: woNumber,
+      work_order_uuid: ve.work_order_id ?? null,
+      vendor_name: ve.title, // vendor_engagements.title stores vendor name
+      project_title: projectTitle,
+      award_amount: ve.amount,
+      status: ve.status ?? 'Active',
+      start_date: eng?.start_date ?? ve.created_at,
+      end_date: eng?.end_date ?? null,
+      department: eng?.department ?? null,
+      awarded_by: eng?.assigned_approver ?? null,
+      decision_reason: 'Awarded via platform',
+      milestones: [],
+      invoices: [],
     };
   });
 

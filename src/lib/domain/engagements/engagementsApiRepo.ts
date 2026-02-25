@@ -97,7 +97,9 @@ export interface MilestoneDto {
 export interface VendorEngagementDto {
   vendor_engagement_id: string;
   engagement_id: string;
+  engagement_uuid: string | null;
   work_order_id: string;
+  work_order_uuid: string | null;
   vendor_name: string;
   project_title: string;
   award_amount: number;
