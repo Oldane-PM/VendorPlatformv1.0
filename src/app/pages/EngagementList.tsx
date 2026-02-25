@@ -36,7 +36,9 @@ interface Invoice {
 interface VendorEngagement {
   vendorEngagementId: string;
   engagementId: string;
+  engagementUuid: string | null;
   workOrderId: string;
+  workOrderUuid: string | null;
   vendorName: string;
   projectTitle: string;
   awardAmount: number;
@@ -79,7 +81,9 @@ export function EngagementList() {
   const vendorEngagements: VendorEngagement[] = rawData.map((dto) => ({
     vendorEngagementId: dto.vendor_engagement_id,
     engagementId: dto.engagement_id,
+    engagementUuid: dto.engagement_uuid,
     workOrderId: dto.work_order_id,
+    workOrderUuid: dto.work_order_uuid,
     vendorName: dto.vendor_name,
     projectTitle: dto.project_title,
     awardAmount: dto.award_amount,
@@ -130,7 +134,7 @@ export function EngagementList() {
     .sort((a, b) => {
       if (sortBy === 'date') {
         return (
-          new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
         );
       } else {
         return b.awardAmount - a.awardAmount;
@@ -436,7 +440,10 @@ export function EngagementList() {
                       <tr
                         key={engagement.vendorEngagementId}
                         onClick={() =>
-                          router.push(`/engagements/${engagement.engagementId}`)
+                          engagement.engagementUuid &&
+                          router.push(
+                            `/engagements/${engagement.engagementUuid}`
+                          )
                         }
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                       >
@@ -447,7 +454,11 @@ export function EngagementList() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Link
-                            href="/engagements"
+                            href={
+                              engagement.engagementUuid
+                                ? `/engagements/${engagement.engagementUuid}`
+                                : '/engagements'
+                            }
                             onClick={(e) => e.stopPropagation()}
                             className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                           >
@@ -456,7 +467,11 @@ export function EngagementList() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Link
-                            href={`/rfqs/${engagement.workOrderId}`}
+                            href={
+                              engagement.workOrderUuid
+                                ? `/work-orders/${engagement.workOrderUuid}`
+                                : '/work-orders'
+                            }
                             onClick={(e) => e.stopPropagation()}
                             className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                           >
