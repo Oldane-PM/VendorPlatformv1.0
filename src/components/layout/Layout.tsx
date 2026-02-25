@@ -72,7 +72,12 @@ export function Layout({ children }: LayoutProps) {
       label: 'Engagements',
       icon: Clipboard,
     },
-    { id: 'nav-rfqs', path: '/rfqs', label: 'RFQs', icon: FileCheck },
+    {
+      id: 'nav-work-orders',
+      path: '/work-orders',
+      label: 'Work Orders',
+      icon: FileCheck,
+    },
     { type: 'divider', label: 'Execution' },
     {
       id: 'nav-vendor-engagements',
@@ -173,7 +178,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <nav className="flex-1 px-3 py-4 space-y-1">
             {navItems.map((item, index) => {
-              if (item.type === 'divider') {
+              if ('type' in item && item.type === 'divider') {
                 if (item.label) {
                   return (
                     <div key={`divider-${index}`} className="pt-4 pb-2 px-3">
@@ -190,14 +195,15 @@ export function Layout({ children }: LayoutProps) {
                 );
               }
 
-              const Icon = item.icon;
-              const active = isActive(item.path);
+              const navItem = item as BaseNavItem;
+              const Icon = navItem.icon;
+              const active = isActive(navItem.path);
 
-              if (item.isPrimaryAction) {
+              if (navItem.isPrimaryAction) {
                 return (
-                  <div key={item.id} className="mb-4">
+                  <div key={navItem.id} className="mb-4">
                     <Link
-                      href={item.path}
+                      href={navItem.path}
                       onClick={() => setIsMobileMenuOpen(false)}
                       title="Upload vendor documents and extract structured data instantly"
                       className={`
@@ -206,10 +212,10 @@ export function Layout({ children }: LayoutProps) {
                       `}
                     >
                       <Icon className="w-5 h-5 mr-3" />
-                      <span className="flex-1">{item.label}</span>
-                      {item.badge && (
+                      <span className="flex-1">{navItem.label}</span>
+                      {navItem.badge && (
                         <span className="ml-2 px-2 py-0.5 text-[10px] font-bold rounded-full tracking-wide bg-blue-500 text-white">
-                          {item.badge}
+                          {navItem.badge}
                         </span>
                       )}
                       <div className="absolute inset-0 rounded-lg opacity-0 group-focus-visible:opacity-100 transition-opacity ring-2 ring-blue-400 ring-offset-2 pointer-events-none" />
@@ -220,8 +226,8 @@ export function Layout({ children }: LayoutProps) {
 
               return (
                 <Link
-                  key={item.id}
-                  href={item.path}
+                  key={navItem.id}
+                  href={navItem.path}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`
                     relative group flex items-center px-3 py-2.5 rounded-lg transition-all text-sm
@@ -234,7 +240,7 @@ export function Layout({ children }: LayoutProps) {
                   <Icon
                     className={`w-5 h-5 mr-3 ${active ? 'text-primary' : ''}`}
                   />
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{navItem.label}</span>
                 </Link>
               );
             })}

@@ -16,7 +16,9 @@ type StatusType =
   | 'closed'
   | 'completed'
   | 'returned'
-  | 'selected';
+  | 'selected'
+  | 'in-progress'
+  | 'awarded';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -28,12 +30,20 @@ const statusConfig: Record<
   { bg: string; text: string; label: string }
 > = {
   draft: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Draft' },
-  'under-review': { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Under Review' },
+  'under-review': {
+    bg: 'bg-amber-100',
+    text: 'text-amber-700',
+    label: 'Under Review',
+  },
   approved: { bg: 'bg-green-100', text: 'text-green-700', label: 'Approved' },
   rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' },
   pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
   paid: { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid' },
-  outstanding: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Outstanding' },
+  outstanding: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-700',
+    label: 'Outstanding',
+  },
   overdue: { bg: 'bg-red-100', text: 'text-red-700', label: 'Overdue' },
   active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Active' },
   inactive: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Inactive' },
@@ -43,6 +53,12 @@ const statusConfig: Record<
   completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Completed' },
   returned: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Returned' },
   selected: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Selected' },
+  'in-progress': {
+    bg: 'bg-amber-100',
+    text: 'text-amber-700',
+    label: 'In Progress',
+  },
+  awarded: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'Awarded' },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
