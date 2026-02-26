@@ -7,10 +7,12 @@ import '@/styles/tailwind.css';
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isLogin = router.pathname === '/login';
+  const isVendorPortal = router.pathname.startsWith('/vendor-upload');
+  const skipLayout = isLogin || isVendorPortal;
 
   return (
     <Providers>
-      {isLogin ? (
+      {skipLayout ? (
         <Component {...pageProps} />
       ) : (
         <Layout>

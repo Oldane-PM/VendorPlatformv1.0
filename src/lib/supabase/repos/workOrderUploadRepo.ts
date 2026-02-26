@@ -467,6 +467,67 @@ export async function finalizeUpload(
     doc_type: fileRow.doc_type,
   });
 
+  // 3b. If doc_type is 'invoice', auto-create an invoice record
+  //     so it appears on the Invoices page
+  if (fileRow.doc_type === 'invoice') {
+    try {
+      // Look up the engagement_id from the work order
+      const { data: wo } = await client
+        .from('work_orders')
+        .select('engagement_id')
+        .eq('id', req.work_order_id)
+        .single();
+
+      const engagementId = wo?.engagement_id ?? null;
+
+      // Create the invoice row
+      const { data: invoiceRow } = await client
+        .from('invoices')
+        .insert({
+          vendor_id: req.vendor_id,
+          engagement_id: engagementId,
+          invoice_number: null,
+          status: 'Submitted',
+          total_amount: null,
+          due_date: null,
+          created_by: null,
+        })
+        .select('id')
+        .single();
+
+      if (invoiceRow) {
+        // Create the invoice_files row linked to the invoice
+        await client.from('invoice_files').insert({
+          invoice_id: invoiceRow.id,
+          storage_path: fileRow.storage_path,
+          file_name: fileRow.file_name,
+          mime_type: fileRow.mime_type,
+        });
+
+        // Audit — invoice auto-created from work order upload
+        await audit(
+          req.org_id,
+          'invoice.created_from_upload',
+          'invoice',
+          invoiceRow.id,
+          null,
+          {
+            work_order_id: req.work_order_id,
+            vendor_id: req.vendor_id,
+            document_id: doc.id,
+            file_name: fileRow.file_name,
+          }
+        );
+      }
+    } catch (invoiceErr: any) {
+      // Don't fail the entire upload if invoice creation fails
+      console.error(
+        '[finalizeUpload] Invoice auto-creation failed:',
+        invoiceErr?.message
+      );
+    }
+  }
+
   // 4. Update the upload file row
   await client
     .from('work_order_upload_files')
