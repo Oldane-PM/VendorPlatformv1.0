@@ -13,7 +13,7 @@ const SIGNED_URL_EXPIRY = 3600; // 1 hour
 // Files from direct invoice uploads go to 'vendor-invoices'.
 function getBucketForFile(storagePath: string): string {
   if (storagePath.startsWith('org/')) {
-    return 'vendor-uploads'; // Work Order upload path pattern
+    return 'vendor_uploads'; // Work Order upload path pattern
   }
   return 'vendor-invoices';
 }
