@@ -1,0 +1,45 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import { finalizeFile } from '@/lib/supabase/repos/workOrderVendorPortalRepo';
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'POST') {
+    return handlePost(req, res);
+  }
+  res.setHeader('Allow', ['POST']);
+  res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+}
+
+async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+  const { requestId, t } = req.query;
+
+  if (!requestId || typeof requestId !== 'string') {
+    return res.status(400).json({ error: 'Missing request ID' });
+  }
+
+  if (!t || typeof t !== 'string') {
+    return res.status(401).json({ error: 'Missing token' });
+  }
+
+  const { submissionId, uploadFileId, meta } = req.body;
+
+  if (!submissionId || !uploadFileId) {
+    return res
+      .status(400)
+      .json({ error: 'Missing submission_id or upload_file_id' });
+  }
+
+  try {
+    const result = await finalizeFile(
+      requestId,
+      t,
+      submissionId,
+      uploadFileId,
+      meta
+    );
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('[portal-finalize] Error:', error);
+    const msg = error.message || 'Failed to finalize file';
+    return res.status(400).json({ error: msg });
+  }
+}
