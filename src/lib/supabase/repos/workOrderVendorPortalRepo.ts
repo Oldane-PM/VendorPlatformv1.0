@@ -646,6 +646,34 @@ export async function resolveVendorForSubmission(
         .select()
         .maybeSingle(); // ignore unique conflicts if already linked somehow
     }
+
+    // Backfill vendor_id on any invoices auto-created from this submission's files
+    const storedFiles = await client
+      .from('work_order_vendor_submission_files')
+      .select('storage_path')
+      .eq('submission_id', submissionId)
+      .eq('status', 'stored');
+
+    const paths = (storedFiles.data ?? []).map((r: any) => r.storage_path);
+
+    if (paths.length > 0) {
+      const { data: invoiceFileRows } = await client
+        .from('invoice_files')
+        .select('invoice_id')
+        .in('storage_path', paths);
+
+      const invoiceIds = [
+        ...new Set((invoiceFileRows ?? []).map((r: any) => r.invoice_id)),
+      ];
+
+      if (invoiceIds.length > 0) {
+        await client
+          .from('invoices')
+          .update({ vendor_id: matchedVendorId })
+          .in('id', invoiceIds)
+          .is('vendor_id', null); // only backfill if still unset
+      }
+    }
   }
 
   await audit(
