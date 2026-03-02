@@ -1,17 +1,17 @@
 /**
- * workOrderUploadRepo — server-side repository for work-order upload requests.
+ * workOrderVendorPortalRepo — server-side repository for vendor document uploads
  *
- * Handles token generation/validation, signed upload URLs, file finalization,
- * and audit-event logging. Uses the service-role Supabase client only.
+ * Implements token-gated links, submissions, signed upload URLs, and vendor resolution.
+ * Uses the service-role Supabase client only.
  */
 
 import crypto from 'crypto';
 import { createServerClient } from '../server';
+import { VendorRow } from './vendorsRepo';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const BUCKET = 'vendor-uploads';
-const SIGNED_URL_TTL_SECONDS = 600; // 10 minutes
+const BUCKET = 'vendor_uploads';
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
@@ -80,20 +80,16 @@ export interface ValidatedRequest {
   id: string;
   org_id: string;
   work_order_id: string;
-  vendor_id: string;
-  request_email: string;
   allowed_doc_types: string[];
   expires_at: string;
   status: string;
   max_files: number;
   max_total_bytes: number;
-  message: string | null;
   created_at: string;
 }
 
 /**
- * Validate a request ID + raw token. Returns the request row if valid,
- * or throws an Error with a user-safe message.
+ * Validate a request ID + raw token. Returns the request row if valid.
  */
 export async function validateToken(
   requestId: string,
@@ -103,7 +99,7 @@ export async function validateToken(
   const hash = hashToken(rawToken);
 
   const { data, error } = await client
-    .from('work_order_upload_requests')
+    .from('work_order_vendor_upload_requests')
     .select('*')
     .eq('id', requestId)
     .eq('token_hash', hash)
@@ -113,16 +109,13 @@ export async function validateToken(
     throw new Error('Invalid or expired upload link.');
   }
 
-  // Check revoked
   if (data.status === 'revoked') {
     throw new Error('This upload link has been revoked.');
   }
 
-  // Check expiry
   if (new Date(data.expires_at) <= new Date()) {
-    // Auto-transition to expired status
     await client
-      .from('work_order_upload_requests')
+      .from('work_order_vendor_upload_requests')
       .update({ status: 'expired' })
       .eq('id', requestId);
     throw new Error('This upload link has expired.');
@@ -131,77 +124,70 @@ export async function validateToken(
   return data as ValidatedRequest;
 }
 
-// ─── createRequest ──────────────────────────────────────────────────────────
+// ─── 1) createUploadLink ────────────────────────────────────────────────────
 
-export interface CreateRequestPayload {
-  workOrderId: string;
-  vendorId: string;
-  requestEmail: string;
+export interface CreateUploadLinkPayload {
   allowedDocTypes?: string[];
   expiresInHours?: number;
   maxFiles?: number;
   maxTotalBytes?: number;
-  message?: string;
 }
 
-export interface CreateRequestResult {
+export interface CreateUploadLinkResult {
   requestId: string;
   expiresAt: string;
   portalUrl: string;
   rawToken: string;
 }
 
-export async function createRequest(
+export async function createUploadLink(
   orgId: string,
   createdBy: string,
-  payload: CreateRequestPayload
-): Promise<CreateRequestResult> {
+  workOrderId: string,
+  config: CreateUploadLinkPayload = {}
+): Promise<CreateUploadLinkResult> {
   const client = supabase() as any;
 
   const rawToken = generateToken();
   const tokenHash = hashToken(rawToken);
   const expiresAt = new Date(
-    Date.now() + (payload.expiresInHours ?? 72) * 60 * 60 * 1000
+    Date.now() + (config.expiresInHours ?? 72) * 60 * 60 * 1000
   ).toISOString();
 
   const row = {
     org_id: orgId,
-    work_order_id: payload.workOrderId,
-    vendor_id: payload.vendorId,
-    request_email: payload.requestEmail,
-    allowed_doc_types: payload.allowedDocTypes ?? [
-      'invoice',
+    work_order_id: workOrderId,
+    allowed_doc_types: config.allowedDocTypes ?? [
       'quote',
+      'invoice',
       'supporting',
     ],
     token_hash: tokenHash,
     expires_at: expiresAt,
-    max_files: payload.maxFiles ?? 10,
-    max_total_bytes: payload.maxTotalBytes ?? 52428800,
-    message: payload.message ?? null,
+    max_files: config.maxFiles ?? 10,
+    max_total_bytes: config.maxTotalBytes ?? 52428800,
     created_by:
       createdBy === '00000000-0000-0000-0000-000000000000' ? null : createdBy,
   };
 
   const { data, error } = await client
-    .from('work_order_upload_requests')
+    .from('work_order_vendor_upload_requests')
     .insert(row)
     .select('id, expires_at')
     .single();
 
   if (error || !data) {
-    console.error('[createRequest] Insert error:', error?.message);
+    console.error('[createUploadLink] Insert error:', error?.message);
     throw new Error('Failed to create upload request.');
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const portalUrl = `${appUrl}/vendor-upload/work-order/${data.id}?t=${rawToken}`;
+  const portalUrl = `${appUrl}/vendor-portal/work-order/${data.id}?t=${rawToken}`;
 
-  // Audit
   await audit(
     orgId,
-    'work_order_upload_request.created',
-    'work_order_upload_request',
+    'work_order_upload_link.created',
+    'work_order_vendor_upload_requests',
     data.id,
     createdBy
   );
@@ -214,62 +200,36 @@ export async function createRequest(
   };
 }
 
-// ─── getPortalStatus ────────────────────────────────────────────────────────
+// ─── 2) getPortalContext ────────────────────────────────────────────────────
 
-export interface PortalStatusDto {
+export interface PortalContextDto {
   requestId: string;
-  vendorName: string | null;
   workOrderTitle: string | null;
   workOrderNumber: string | null;
   allowedDocTypes: string[];
   expiresAt: string;
   maxFiles: number;
   maxTotalBytes: number;
-  message: string | null;
-  uploadedFiles: Array<{
-    id: string;
-    file_name: string;
-    doc_type: string;
-    status: string;
-    size_bytes: number | null;
-    uploaded_at: string;
-  }>;
 }
 
-export async function getPortalStatus(
+export async function getPortalContext(
   requestId: string,
   rawToken: string,
   ip?: string
-): Promise<PortalStatusDto> {
+): Promise<PortalContextDto> {
   const req = await validateToken(requestId, rawToken);
   const client = supabase() as any;
 
-  // Fetch vendor name
-  const { data: vendor } = await client
-    .from('vendors')
-    .select('vendor_name')
-    .eq('id', req.vendor_id)
-    .single();
-
-  // Fetch work order info
   const { data: wo } = await client
     .from('work_orders')
     .select('title, work_order_number')
     .eq('id', req.work_order_id)
     .single();
 
-  // Fetch uploaded files for this request
-  const { data: files } = await client
-    .from('work_order_upload_files')
-    .select('id, file_name, doc_type, status, size_bytes, uploaded_at')
-    .eq('upload_request_id', requestId)
-    .order('uploaded_at', { ascending: true });
-
-  // Audit – opened
   await audit(
     req.org_id,
-    'work_order_upload_request.opened',
-    'work_order_upload_request',
+    'work_order_upload_link.opened',
+    'work_order_vendor_upload_requests',
     requestId,
     null,
     {},
@@ -278,7 +238,6 @@ export async function getPortalStatus(
 
   return {
     requestId,
-    vendorName: vendor?.vendor_name ?? null,
     workOrderTitle: wo?.title ?? null,
     workOrderNumber: wo?.work_order_number
       ? `WO-${String(wo.work_order_number).padStart(4, '0')}`
@@ -287,12 +246,70 @@ export async function getPortalStatus(
     expiresAt: req.expires_at,
     maxFiles: req.max_files,
     maxTotalBytes: req.max_total_bytes,
-    message: req.message,
-    uploadedFiles: files ?? [],
   };
 }
 
-// ─── createSignedUploadUrl ──────────────────────────────────────────────────
+// ─── 3) createSubmission ────────────────────────────────────────────────────
+
+export interface CreateSubmissionPayload {
+  vendorName: string;
+  vendorEmail?: string;
+  vendorPhone?: string;
+  taxId?: string;
+  vendorCode?: string;
+  currency?: string;
+  quotedAmount?: number;
+  message?: string;
+}
+
+export async function createSubmission(
+  requestId: string,
+  rawToken: string,
+  payload: CreateSubmissionPayload
+): Promise<{ submissionId: string }> {
+  const req = await validateToken(requestId, rawToken);
+  const client = supabase() as any;
+
+  if (!payload.vendorName?.trim()) {
+    throw new Error('Vendor name is required.');
+  }
+
+  const { data, error } = await client
+    .from('work_order_vendor_submissions')
+    .insert({
+      org_id: req.org_id,
+      work_order_id: req.work_order_id,
+      upload_request_id: requestId,
+      vendor_name: payload.vendorName,
+      vendor_email: payload.vendorEmail ?? null,
+      vendor_phone: payload.vendorPhone ?? null,
+      tax_id: payload.taxId ?? null,
+      vendor_code: payload.vendorCode ?? null,
+      currency: payload.currency ?? 'JMD',
+      quoted_amount: payload.quotedAmount ?? null,
+      message: payload.message ?? null,
+      status: 'submitted',
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    console.error('[createSubmission] Insert error:', error?.message);
+    throw new Error('Failed to create vendor submission.');
+  }
+
+  await audit(
+    req.org_id,
+    'work_order_vendor_submission.created',
+    'work_order_vendor_submissions',
+    data.id,
+    null
+  );
+
+  return { submissionId: data.id };
+}
+
+// ─── 4) createSignedUploadUrl ───────────────────────────────────────────────
 
 export interface FileMetaInput {
   fileName: string;
@@ -310,63 +327,47 @@ export interface SignedUploadResult {
 export async function createSignedUploadUrl(
   requestId: string,
   rawToken: string,
-  fileMeta: FileMetaInput,
-  ip?: string
+  submissionId: string,
+  fileMeta: FileMetaInput
 ): Promise<SignedUploadResult> {
   const req = await validateToken(requestId, rawToken);
   const client = supabase() as any;
 
-  // Validate doc type
+  // Verify submission belongs to this request
+  const { data: sub } = await client
+    .from('work_order_vendor_submissions')
+    .select('id')
+    .eq('id', submissionId)
+    .eq('upload_request_id', requestId)
+    .single();
+
+  if (!sub) {
+    throw new Error('Invalid submission ID for this request.');
+  }
+
   if (!req.allowed_doc_types.includes(fileMeta.docType)) {
     throw new Error(`Document type "${fileMeta.docType}" is not allowed.`);
   }
 
-  // Validate MIME
   if (!ALLOWED_MIME_TYPES.includes(fileMeta.mimeType)) {
     throw new Error(`File type "${fileMeta.mimeType}" is not allowed.`);
   }
 
-  // Validate per-file size
   if (fileMeta.sizeBytes > MAX_FILE_SIZE) {
     throw new Error(
       `File exceeds maximum size of ${MAX_FILE_SIZE / 1024 / 1024} MB.`
     );
   }
 
-  // Check request-level limits
-  const { data: existingFiles } = await client
-    .from('work_order_upload_files')
-    .select('id, size_bytes, status')
-    .eq('upload_request_id', requestId)
-    .in('status', ['queued', 'uploading', 'stored']);
-
-  const currentCount = existingFiles?.length ?? 0;
-  const currentBytes = (existingFiles ?? []).reduce(
-    (sum: number, f: any) => sum + (f.size_bytes ?? 0),
-    0
-  );
-
-  if (currentCount >= req.max_files) {
-    throw new Error(`Maximum number of files (${req.max_files}) reached.`);
-  }
-
-  if (currentBytes + fileMeta.sizeBytes > req.max_total_bytes) {
-    throw new Error('Total upload size limit exceeded.');
-  }
-
-  // Build storage path
   const fileId = crypto.randomUUID();
   const safeName = sanitizeFileName(fileMeta.fileName);
-  const storagePath = `org/${req.org_id}/work_orders/${req.work_order_id}/vendors/${req.vendor_id}/upload_requests/${requestId}/${fileId}-${safeName}`;
+  const storagePath = `org/${req.org_id}/work_orders/${req.work_order_id}/submissions/${submissionId}/${fileId}-${safeName}`;
 
-  // Insert tracking row
   const { data: fileRow, error: insertErr } = await client
-    .from('work_order_upload_files')
+    .from('work_order_vendor_submission_files')
     .insert({
       org_id: req.org_id,
-      upload_request_id: requestId,
-      work_order_id: req.work_order_id,
-      vendor_id: req.vendor_id,
+      submission_id: submissionId,
       doc_type: fileMeta.docType,
       file_name: fileMeta.fileName,
       mime_type: fileMeta.mimeType,
@@ -374,26 +375,21 @@ export async function createSignedUploadUrl(
       storage_bucket: BUCKET,
       storage_path: storagePath,
       status: 'queued',
-      uploader_ip: ip ?? null,
     })
     .select('id')
     .single();
 
   if (insertErr || !fileRow) {
-    console.error('[createSignedUploadUrl] Insert error:', insertErr?.message);
-    throw new Error('Failed to prepare upload.');
+    throw new Error('Failed to prepare upload tracking.');
   }
 
-  // Generate signed upload URL
   const { data: signedData, error: signErr } = await client.storage
     .from(BUCKET)
     .createSignedUploadUrl(storagePath);
 
   if (signErr || !signedData?.signedUrl) {
-    console.error('[createSignedUploadUrl] Storage error:', signErr?.message);
-    // Mark as failed
     await client
-      .from('work_order_upload_files')
+      .from('work_order_vendor_submission_files')
       .update({ status: 'failed' })
       .eq('id', fileRow.id);
     throw new Error('Failed to generate upload URL.');
@@ -406,35 +402,34 @@ export async function createSignedUploadUrl(
   };
 }
 
-// ─── finalizeUpload ─────────────────────────────────────────────────────────
+// ─── 5) finalizeFile ────────────────────────────────────────────────────────
 
 export interface FinalizeInput {
   sha256?: string;
   sizeBytes?: number;
 }
 
-export async function finalizeUpload(
+export async function finalizeFile(
   requestId: string,
   rawToken: string,
+  submissionId: string,
   uploadFileId: string,
   meta: FinalizeInput = {}
 ): Promise<{ success: boolean }> {
   const req = await validateToken(requestId, rawToken);
   const client = supabase() as any;
 
-  // Fetch the upload file row
-  const { data: fileRow, error: fetchErr } = await client
-    .from('work_order_upload_files')
+  const { data: fileRow } = await client
+    .from('work_order_vendor_submission_files')
     .select('*')
     .eq('id', uploadFileId)
-    .eq('upload_request_id', requestId)
+    .eq('submission_id', submissionId)
     .single();
 
-  if (fetchErr || !fileRow) {
+  if (!fileRow) {
     throw new Error('Upload file record not found.');
   }
 
-  // 1. Create documents row
   const { data: doc, error: docErr } = await client
     .from('documents')
     .insert({
@@ -449,28 +444,28 @@ export async function finalizeUpload(
     .single();
 
   if (docErr || !doc) {
-    console.error('[finalizeUpload] documents insert error:', docErr?.message);
     throw new Error('Failed to create document record.');
   }
 
-  // 2. Insert into work_order_documents
   await client.from('work_order_documents').insert({
     work_order_id: req.work_order_id,
     document_id: doc.id,
     doc_type: fileRow.doc_type,
   });
 
-  // 3. Insert into vendor_documents
-  await client.from('vendor_documents').insert({
-    vendor_id: req.vendor_id,
-    document_id: doc.id,
-    doc_type: fileRow.doc_type,
-  });
-
-  // 3b. If doc_type is 'invoice', auto-create an invoice record
-  //     so it appears on the Invoices page
+  // 3. If doc_type is 'invoice', auto-create an invoice record
+  //    so it appears on the Invoices page
   if (fileRow.doc_type === 'invoice') {
     try {
+      // Look up vendor_id from the submission (may be null if not yet resolved)
+      const { data: subRow } = await client
+        .from('work_order_vendor_submissions')
+        .select('vendor_id')
+        .eq('id', submissionId)
+        .single();
+
+      const vendorId = subRow?.vendor_id ?? null;
+
       // Look up the engagement_id from the work order
       const { data: wo } = await client
         .from('work_orders')
@@ -484,7 +479,7 @@ export async function finalizeUpload(
       const { data: invoiceRow } = await client
         .from('invoices')
         .insert({
-          vendor_id: req.vendor_id,
+          vendor_id: vendorId,
           engagement_id: engagementId,
           invoice_number: null,
           status: 'Submitted',
@@ -513,7 +508,7 @@ export async function finalizeUpload(
           null,
           {
             work_order_id: req.work_order_id,
-            vendor_id: req.vendor_id,
+            vendor_id: vendorId,
             document_id: doc.id,
             file_name: fileRow.file_name,
           }
@@ -530,7 +525,7 @@ export async function finalizeUpload(
 
   // 4. Update the upload file row
   await client
-    .from('work_order_upload_files')
+    .from('work_order_vendor_submission_files')
     .update({
       document_id: doc.id,
       status: 'stored',
@@ -539,20 +534,11 @@ export async function finalizeUpload(
     })
     .eq('id', uploadFileId);
 
-  // 5. Update request status to partially_uploaded
-  if (req.status === 'pending') {
-    await client
-      .from('work_order_upload_requests')
-      .update({ status: 'partially_uploaded' })
-      .eq('id', requestId);
-  }
-
-  // 6. Audit
   await audit(
     req.org_id,
-    'work_order_upload_file.uploaded',
-    'work_order_upload_file',
-    uploadFileId,
+    'work_order_vendor_submission.file_uploaded',
+    'work_order_vendor_submissions',
+    submissionId,
     null,
     { document_id: doc.id, file_name: fileRow.file_name }
   );
@@ -560,122 +546,162 @@ export async function finalizeUpload(
   return { success: true };
 }
 
-// ─── markCompleted ──────────────────────────────────────────────────────────
+// ─── 6) resolveVendorForSubmission ──────────────────────────────────────────
 
-export async function markCompleted(
-  requestId: string,
-  rawToken: string
-): Promise<{ success: boolean }> {
-  const req = await validateToken(requestId, rawToken);
+export async function resolveVendorForSubmission(
+  orgId: string,
+  submissionId: string,
+  actorUserId: string
+): Promise<{ success: boolean; vendorId: string }> {
   const client = supabase() as any;
 
-  // Must have at least 1 stored file
-  const { count } = await client
-    .from('work_order_upload_files')
-    .select('id', { count: 'exact', head: true })
-    .eq('upload_request_id', requestId)
-    .eq('status', 'stored');
+  const { data: sub } = await client
+    .from('work_order_vendor_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .eq('org_id', orgId)
+    .single();
 
-  if (!count || count === 0) {
-    throw new Error('Cannot mark as complete — no files have been uploaded.');
+  if (!sub) throw new Error('Submission not found.');
+  if (sub.vendor_id) return { success: true, vendorId: sub.vendor_id };
+
+  let matchedVendorId: string | null = null;
+  let matchMethod: 'matched_existing' | 'created_new' = 'created_new';
+
+  if (sub.tax_id) {
+    const { data: tv } = await client
+      .from('vendors')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('tax_id', sub.tax_id)
+      .maybeSingle();
+    if (tv) matchedVendorId = tv.id;
+  }
+  if (!matchedVendorId && sub.vendor_code) {
+    const { data: cv } = await client
+      .from('vendors')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('vendor_code', sub.vendor_code)
+      .maybeSingle();
+    if (cv) matchedVendorId = cv.id;
+  }
+  if (!matchedVendorId) {
+    const { data: nv } = await client
+      .from('vendors')
+      .select('id')
+      .eq('org_id', orgId)
+      .ilike('vendor_name', sub.vendor_name)
+      .maybeSingle();
+    if (nv) matchedVendorId = nv.id;
+  }
+
+  if (matchedVendorId) {
+    matchMethod = 'matched_existing';
+  } else {
+    // Create new
+    const { data: newV } = await client
+      .from('vendors')
+      .insert({
+        org_id: orgId,
+        vendor_name: sub.vendor_name,
+        vendor_code: sub.vendor_code ?? null,
+        tax_id: sub.tax_id ?? null,
+        email: sub.vendor_email ?? null,
+        phone: sub.vendor_phone ?? null,
+        status: 'active',
+      })
+      .select('id')
+      .single();
+    matchedVendorId = newV.id;
   }
 
   await client
-    .from('work_order_upload_requests')
-    .update({ status: 'completed' })
-    .eq('id', requestId);
-
-  await audit(
-    req.org_id,
-    'work_order_upload_request.completed',
-    'work_order_upload_request',
-    requestId,
-    null
-  );
-
-  return { success: true };
-}
-
-// ─── revokeRequest ──────────────────────────────────────────────────────────
-
-export async function revokeRequest(
-  orgId: string,
-  requestId: string,
-  revokedBy: string
-): Promise<{ success: boolean }> {
-  const client = supabase() as any;
-
-  const { error } = await client
-    .from('work_order_upload_requests')
+    .from('work_order_vendor_submissions')
     .update({
-      status: 'revoked',
-      revoked_at: new Date().toISOString(),
-      revoked_by:
-        revokedBy === '00000000-0000-0000-0000-000000000000' ? null : revokedBy,
+      vendor_id: matchedVendorId,
+      resolved_vendor_at: new Date().toISOString(),
+      resolved_vendor_method: matchMethod,
+      resolved_by: actorUserId,
     })
-    .eq('id', requestId)
-    .eq('org_id', orgId);
+    .eq('id', submissionId);
 
-  if (error) {
-    console.error('[revokeRequest] error:', error.message);
-    throw new Error('Failed to revoke upload request.');
+  // Link documents to vendor
+  const { data: files } = await client
+    .from('work_order_vendor_submission_files')
+    .select('document_id, doc_type')
+    .eq('submission_id', submissionId)
+    .eq('status', 'stored')
+    .not('document_id', 'is', null);
+
+  if (files && files.length > 0) {
+    for (const f of files) {
+      await client
+        .from('vendor_documents')
+        .insert({
+          vendor_id: matchedVendorId,
+          document_id: f.document_id,
+          doc_type: f.doc_type,
+        })
+        .select()
+        .maybeSingle(); // ignore unique conflicts if already linked somehow
+    }
   }
 
   await audit(
     orgId,
-    'work_order_upload_request.revoked',
-    'work_order_upload_request',
-    requestId,
-    revokedBy
+    matchMethod === 'created_new'
+      ? 'work_order_vendor_submission.vendor_created'
+      : 'work_order_vendor_submission.vendor_matched',
+    'work_order_vendor_submissions',
+    submissionId,
+    actorUserId,
+    { vendor_id: matchedVendorId }
   );
 
-  return { success: true };
+  return { success: true, vendorId: matchedVendorId as string };
 }
 
-// ─── listRequestsByWorkOrder ────────────────────────────────────────────────
+// ─── 7) listWorkOrderVendorSubmissions ──────────────────────────────────────
 
-export interface UploadRequestSummary {
+export interface SubmissionListDto {
   id: string;
-  vendor_id: string;
-  request_email: string;
+  vendor_id: string | null;
+  vendor_name: string;
+  quoted_amount: number | null;
+  currency: string;
   status: string;
-  expires_at: string;
-  max_files: number;
-  created_at: string;
+  submitted_at: string;
   file_count: number;
 }
 
-export async function listRequestsByWorkOrder(
+export async function listWorkOrderVendorSubmissions(
   orgId: string,
   workOrderId: string
-): Promise<UploadRequestSummary[]> {
+): Promise<SubmissionListDto[]> {
   const client = supabase() as any;
 
-  const { data: requests, error } = await client
-    .from('work_order_upload_requests')
+  const { data: subs, error } = await client
+    .from('work_order_vendor_submissions')
     .select(
-      'id, vendor_id, request_email, status, expires_at, max_files, created_at'
+      'id, vendor_id, vendor_name, quoted_amount, currency, status, submitted_at, work_order_vendor_submission_files(count)'
     )
     .eq('org_id', orgId)
     .eq('work_order_id', workOrderId)
-    .order('created_at', { ascending: false });
+    .order('submitted_at', { ascending: false });
 
-  if (error) {
-    console.error('[listRequestsByWorkOrder] error:', error.message);
-    return [];
-  }
+  if (error || !subs) return [];
 
-  // Enrich with file counts
-  const results: UploadRequestSummary[] = [];
-  for (const req of requests ?? []) {
-    const { count } = await client
-      .from('work_order_upload_files')
-      .select('id', { count: 'exact', head: true })
-      .eq('upload_request_id', req.id)
-      .eq('status', 'stored');
-
-    results.push({ ...req, file_count: count ?? 0 });
-  }
-
-  return results;
+  return subs.map((s: any) => ({
+    id: s.id,
+    vendor_id: s.vendor_id,
+    vendor_name: s.vendor_name,
+    quoted_amount: s.quoted_amount,
+    currency: s.currency,
+    status: s.status,
+    submitted_at: s.submitted_at,
+    file_count: s.work_order_vendor_submission_files
+      ? s.work_order_vendor_submission_files[0].count
+      : 0,
+  }));
 }
