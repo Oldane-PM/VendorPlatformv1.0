@@ -1,190 +1,135 @@
-/**
- * useVendorWorkOrderUploadPortal — hook for the public vendor upload portal.
- *
- * Manages the full upload lifecycle: load status → select files → get signed
- * URL → upload to Storage → finalize → mark complete.
- */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { vendorWorkOrderPortalApiRepo } from '../domain/uploads/vendorWorkOrderPortalApiRepo';
 import {
-  getStatus,
-  createUploadUrl,
-  finalize,
-  complete,
-  type PortalStatus,
-} from '@/lib/domain/uploads/vendorWorkOrderPortalApiRepo';
+  PortalContextDto,
+  CreateSubmissionPayload,
+} from '../supabase/repos/workOrderVendorPortalRepo';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface FileUploadState {
+export interface UploadFileState {
+  id: string; // temp client-side id
   file: File;
-  docType: string;
-  status: 'pending' | 'uploading' | 'finalizing' | 'done' | 'error';
-  progress: number; // 0-100
-  error?: string;
+  doc_type: string;
+  progress: number;
+  status: 'pending' | 'uploading' | 'completed' | 'error';
+  errorMessage?: string;
   uploadFileId?: string;
 }
 
-// ─── Hook ───────────────────────────────────────────────────────────────────
-
-export function useVendorWorkOrderUploadPortal(
-  requestId: string | undefined,
-  token: string | undefined
-) {
-  const [portalStatus, setPortalStatus] = useState<PortalStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function useVendorWorkOrderPortal(requestId: string, token: string) {
+  const [context, setContext] = useState<PortalContextDto | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<UploadFileState[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [files, setFiles] = useState<FileUploadState[]>([]);
-  const [isCompleted, setIsCompleted] = useState(false);
 
-  // ── Load portal status ────────────────────────────────────────────────
-  const loadStatus = useCallback(async () => {
+  const loadContext = useCallback(async () => {
     if (!requestId || !token) return;
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     try {
-      const data = await getStatus(requestId, token);
-      setPortalStatus(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load portal.');
+      const ctx = await vendorWorkOrderPortalApiRepo.getContext(
+        requestId,
+        token
+      );
+      setContext(ctx);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load portal context');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [requestId, token]);
 
-  useEffect(() => {
-    loadStatus();
-  }, [loadStatus]);
-
-  // ── Add files ─────────────────────────────────────────────────────────
-  const addFiles = useCallback((newFiles: File[], docType: string) => {
-    const items: FileUploadState[] = newFiles.map((f) => ({
-      file: f,
-      docType,
-      status: 'pending',
-      progress: 0,
-    }));
-    setFiles((prev) => [...prev, ...items]);
-  }, []);
-
-  // ── Remove file ───────────────────────────────────────────────────────
-  const removeFile = useCallback((index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // ── Update doc type ───────────────────────────────────────────────────
-  const updateDocType = useCallback((index: number, docType: string) => {
-    setFiles((prev) =>
-      prev.map((f, i) => (i === index ? { ...f, docType } : f))
-    );
-  }, []);
-
-  // ── Upload a single file ──────────────────────────────────────────────
-  const uploadFile = useCallback(
-    async (index: number) => {
-      if (!requestId || !token) return;
-
-      const fileState = files[index];
-      if (!fileState || fileState.status !== 'pending') return;
-
-      // Update status
-      setFiles((prev) =>
-        prev.map((f, i) =>
-          i === index ? { ...f, status: 'uploading', progress: 10 } : f
-        )
-      );
-
-      try {
-        // 1. Get signed URL
-        const { signedUrl, uploadFileId } = await createUploadUrl(
+  const submitVendorInfo = async (payload: CreateSubmissionPayload) => {
+    setError(null);
+    try {
+      const { submissionId: newId } =
+        await vendorWorkOrderPortalApiRepo.createSubmission(
           requestId,
           token,
-          {
-            fileName: fileState.file.name,
-            mimeType: fileState.file.type,
-            sizeBytes: fileState.file.size,
-            docType: fileState.docType,
-          }
+          payload
         );
-
-        setFiles((prev) =>
-          prev.map((f, i) =>
-            i === index ? { ...f, progress: 30, uploadFileId } : f
-          )
-        );
-
-        // 2. Upload to Storage via PUT
-        const uploadRes = await fetch(signedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': fileState.file.type },
-          body: fileState.file,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Upload to storage failed.');
-        }
-
-        setFiles((prev) =>
-          prev.map((f, i) =>
-            i === index ? { ...f, progress: 70, status: 'finalizing' } : f
-          )
-        );
-
-        // 3. Finalize
-        await finalize(requestId, token, uploadFileId, {
-          sizeBytes: fileState.file.size,
-        });
-
-        setFiles((prev) =>
-          prev.map((f, i) =>
-            i === index ? { ...f, progress: 100, status: 'done' } : f
-          )
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Upload failed.';
-        setFiles((prev) =>
-          prev.map((f, i) =>
-            i === index ? { ...f, status: 'error', error: msg } : f
-          )
-        );
-      }
-    },
-    [requestId, token, files]
-  );
-
-  // ── Upload all pending files ──────────────────────────────────────────
-  const uploadAll = useCallback(async () => {
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].status === 'pending') {
-        await uploadFile(i);
-      }
+      setSubmissionId(newId);
+      return newId;
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit info');
+      throw err;
     }
-  }, [files, uploadFile]);
+  };
 
-  // ── Mark complete ─────────────────────────────────────────────────────
-  const markComplete = useCallback(async () => {
-    if (!requestId || !token) return;
-    try {
-      await complete(requestId, token);
-      setIsCompleted(true);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to mark as complete.'
+  const uploadFiles = async (filesToUpload: UploadFileState[]) => {
+    if (!submissionId) throw new Error('No submission context found');
+
+    // Process sequentially or limited concurrency
+    for (const f of filesToUpload) {
+      setUploads((prev) =>
+        prev.map((u) => (u.id === f.id ? { ...u, status: 'uploading' } : u))
       );
+      try {
+        const { signedUrl, uploadFileId } =
+          await vendorWorkOrderPortalApiRepo.createUploadUrl(
+            requestId,
+            token,
+            submissionId,
+            {
+              fileName: f.file.name,
+              mimeType: f.file.type,
+              sizeBytes: f.file.size,
+              docType: f.doc_type,
+            }
+          );
+
+        // Actual PUT to supabase storage
+        const putRes = await fetch(signedUrl, {
+          method: 'PUT',
+          body: f.file,
+          headers: {
+            'Content-Type': f.file.type || 'application/octet-stream',
+          },
+        });
+
+        if (!putRes.ok) throw new Error('Storage upload failed');
+
+        // Finalize
+        await vendorWorkOrderPortalApiRepo.finalizeFile(
+          requestId,
+          token,
+          submissionId,
+          uploadFileId
+        );
+
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === f.id
+              ? { ...u, status: 'completed', uploadFileId, progress: 100 }
+              : u
+          )
+        );
+      } catch (err: any) {
+        console.error('File upload error:', err);
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === f.id
+              ? {
+                  ...u,
+                  status: 'error',
+                  errorMessage: err.message || 'Upload failed',
+                }
+              : u
+          )
+        );
+      }
     }
-  }, [requestId, token]);
+  };
 
   return {
-    portalStatus,
-    isLoading,
+    context,
+    submissionId,
+    uploads,
+    setUploads,
+    loading,
     error,
-    files,
-    isCompleted,
-    addFiles,
-    removeFile,
-    updateDocType,
-    uploadFile,
-    uploadAll,
-    markComplete,
-    refreshStatus: loadStatus,
+    loadContext,
+    submitVendorInfo,
+    uploadFiles,
   };
 }

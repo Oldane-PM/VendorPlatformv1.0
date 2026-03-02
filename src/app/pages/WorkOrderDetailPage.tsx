@@ -15,12 +15,10 @@ import {
   Download,
   X,
   Upload,
-  Mail,
   Copy,
   Check,
   LinkIcon,
   Clock,
-  Ban,
 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { Sheet, SheetContent } from '../components/ui/sheet';
@@ -35,7 +33,7 @@ import {
 import { useWorkOrderSubmissions } from '@/lib/hooks/useWorkOrderSubmissions';
 import { useVendorSubmissionDetail } from '@/lib/hooks/useVendorSubmissionDetail';
 import { useAwardSubmission } from '@/lib/hooks/useAwardSubmission';
-import { useWorkOrderUploadRequests } from '@/lib/hooks/useWorkOrderUploadRequests';
+import { useWorkOrderVendorUploadLink } from '@/lib/hooks/useWorkOrderVendorUploadLink';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -195,15 +193,15 @@ export function WorkOrderDetailPage() {
 
   // Upload request state
   const [showRequestDocModal, setShowRequestDocModal] = useState(false);
-  const [reqDocEmail, setReqDocEmail] = useState('');
-  const [reqDocVendorId, setReqDocVendorId] = useState('');
   const [reqDocTypes, setReqDocTypes] = useState<string[]>([
     'invoice',
     'quote',
     'supporting',
   ]);
   const [reqDocExpiry, setReqDocExpiry] = useState(72);
-  const [reqDocMessage, setReqDocMessage] = useState('');
+
+  // New link generation state
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Award decision state
@@ -231,12 +229,7 @@ export function WorkOrderDetailPage() {
   } = useAwardSubmission();
 
   // Upload requests hook
-  const {
-    requests: uploadRequests,
-    isLoading: uploadReqLoading,
-    create: createUploadRequest,
-    revoke: revokeUploadRequest,
-  } = useWorkOrderUploadRequests(workOrderIdStr);
+  const { createLink, loading: linkLoading } = useWorkOrderVendorUploadLink();
 
   // ── Fetch work order ──────────────────────────────────────────────────
   const fetchWorkOrder = useCallback(async () => {
@@ -938,74 +931,7 @@ export function WorkOrderDetailPage() {
         })()}
       </div>
 
-      {/* ── Upload Requests Section ──────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-blue-500" />
-            <h2 className="text-lg font-bold text-gray-900">Upload Requests</h2>
-          </div>
-          <span className="text-sm text-gray-500">
-            {uploadRequests.length} request
-            {uploadRequests.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-
-        {uploadReqLoading ? (
-          <div className="px-6 py-8 text-center">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400 mx-auto" />
-          </div>
-        ) : uploadRequests.length === 0 ? (
-          <div className="px-6 py-8 text-center">
-            <Mail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No upload requests yet</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Click &quot;Request Documents&quot; to send an upload link to a
-              vendor.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {uploadRequests.map((ur) => (
-              <div key={ur.id} className="px-6 py-4 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {ur.request_email}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {ur.file_count} file{ur.file_count !== 1 ? 's' : ''}{' '}
-                    uploaded · Expires{' '}
-                    {new Date(ur.expires_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                    ur.status === 'completed'
-                      ? 'bg-green-50 text-green-700 border-green-200'
-                      : ur.status === 'revoked'
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : ur.status === 'expired'
-                          ? 'bg-gray-100 text-gray-600 border-gray-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}
-                >
-                  {ur.status}
-                </span>
-                {(ur.status === 'pending' ||
-                  ur.status === 'partially_uploaded') && (
-                  <button
-                    onClick={() => revokeUploadRequest(ur.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                    title="Revoke"
-                  >
-                    <Ban className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* ── Vendor Submissions block ends above this ── */}
 
       {/* ── Request Documents Modal ──────────────────────────────────── */}
       {showRequestDocModal && (
@@ -1031,138 +957,149 @@ export function WorkOrderDetailPage() {
             </div>
 
             <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* Vendor */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Vendor <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={reqDocVendorId}
-                  onChange={(e) => setReqDocVendorId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                >
-                  <option value="">Select vendor…</option>
-                  {submissions.map((sub) => (
-                    <option key={sub.vendor_id} value={sub.vendor_id}>
-                      {sub.vendor_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!generatedLink ? (
+                <>
+                  {/* Vendor Selection Note for Context (Optional, mostly internal info) */}
+                  <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg flex gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Generate a secure, time-bound link. You can send this link
+                      to any vendor (existing or new) via your own email/chat.
+                    </p>
+                  </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Recipient Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={reqDocEmail}
-                  onChange={(e) => setReqDocEmail(e.target.value)}
-                  placeholder="vendor@example.com"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Document Types */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Allowed Document Types
-                </label>
-                <div className="flex gap-3">
-                  {['invoice', 'quote', 'supporting'].map((t) => (
-                    <label
-                      key={t}
-                      className="inline-flex items-center gap-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={reqDocTypes.includes(t)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setReqDocTypes((prev) => [...prev, t]);
-                          } else {
-                            setReqDocTypes((prev) =>
-                              prev.filter((x) => x !== t)
-                            );
-                          }
-                        }}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="capitalize">{t}</span>
+                  {/* Document Types */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Requested Document Types
                     </label>
-                  ))}
+                    <div className="flex gap-3">
+                      {['invoice', 'quote', 'supporting'].map((t) => (
+                        <label
+                          key={t}
+                          className="inline-flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={reqDocTypes.includes(t)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setReqDocTypes((prev) => [...prev, t]);
+                              } else {
+                                setReqDocTypes((prev) =>
+                                  prev.filter((x) => x !== t)
+                                );
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="capitalize">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Expiry */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Link Expiry (hours)
+                    </label>
+                    <select
+                      value={reqDocExpiry}
+                      onChange={(e) => setReqDocExpiry(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value={24}>24 hours</option>
+                      <option value={48}>48 hours</option>
+                      <option value={72}>72 hours (default)</option>
+                      <option value={168}>7 days</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 text-green-800 text-sm p-4 rounded-lg flex items-start gap-3">
+                    <Check className="w-5 h-5 flex-shrink-0 text-green-600" />
+                    <div>
+                      <p className="font-bold mb-1">
+                        Link Generated Successfully
+                      </p>
+                      <p>
+                        Copy the link below and send it to your vendor. This
+                        link will expire in {reqDocExpiry} hours.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Secure Upload Link
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedLink}
+                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(generatedLink);
+                            setCopiedLink(true);
+                            setTimeout(() => setCopiedLink(false), 3000);
+                          } catch (err) {}
+                        }}
+                        className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+                      >
+                        {copiedLink ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                        {copiedLink ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Expiry */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Link Expiry (hours)
-                </label>
-                <select
-                  value={reqDocExpiry}
-                  onChange={(e) => setReqDocExpiry(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                >
-                  <option value={24}>24 hours</option>
-                  <option value={48}>48 hours</option>
-                  <option value={72}>72 hours (default)</option>
-                  <option value={168}>7 days</option>
-                </select>
-              </div>
-
-              {/* Message */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Message (Optional)
-                </label>
-                <textarea
-                  value={reqDocMessage}
-                  onChange={(e) => setReqDocMessage(e.target.value)}
-                  placeholder="Optional note to the vendor…"
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                />
-              </div>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
               <button
-                onClick={() => setShowRequestDocModal(false)}
+                onClick={() => {
+                  setShowRequestDocModal(false);
+                  setGeneratedLink(null);
+                }}
                 className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
               >
-                Cancel
+                {generatedLink ? 'Done' : 'Cancel'}
               </button>
-              <button
-                disabled={!reqDocVendorId || !reqDocEmail}
-                onClick={async () => {
-                  const result = await createUploadRequest({
-                    vendorId: reqDocVendorId,
-                    requestEmail: reqDocEmail,
-                    allowedDocTypes: reqDocTypes,
-                    expiresInHours: reqDocExpiry,
-                    message: reqDocMessage || undefined,
-                  });
-                  if (result) {
-                    setShowRequestDocModal(false);
-                    setReqDocEmail('');
-                    setReqDocVendorId('');
-                    setReqDocMessage('');
-                    setToastMessage('Upload link sent successfully!');
-                    // Copy to clipboard
-                    try {
-                      await navigator.clipboard.writeText(result.portalUrl);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 3000);
-                    } catch {}
-                  }
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Mail className="w-4 h-4" />
-                Send Upload Link
-              </button>
+
+              {!generatedLink && (
+                <button
+                  disabled={linkLoading || !workOrder}
+                  onClick={async () => {
+                    if (!workOrder) return;
+                    const result = await createLink(workOrder.id, {
+                      allowedDocTypes: reqDocTypes,
+                      expiresInHours: reqDocExpiry,
+                    });
+                    if (result?.portalUrl) {
+                      setGeneratedLink(result.portalUrl);
+                      setToastMessage('Link generated successfully!');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <LinkIcon className="w-4 h-4" />
+                  )}
+                  Generate Link
+                </button>
+              )}
             </div>
           </div>
         </div>

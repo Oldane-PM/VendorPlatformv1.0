@@ -11,6 +11,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useEngagements, type Engagement } from '@/lib/hooks/useEngagements';
+import { useWorkOrderVendorSubmissions } from '@/lib/hooks/useWorkOrderVendorSubmissions';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,9 @@ export function EngagementsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedEngagement, setSelectedEngagement] =
     useState<Engagement | null>(null);
+  const [drawerWorkOrderId, setDrawerWorkOrderId] = useState<string | null>(
+    null
+  );
   const [isDrawerEditing, setIsDrawerEditing] = useState(false);
   const [drawerFormData, setDrawerFormData] = useState({
     title: '',
@@ -58,6 +62,15 @@ export function EngagementsPage() {
     );
     return `ENG-${(maxNum + 1).toString().padStart(4, '0')}`;
   };
+
+  // Submissions for selected engagement (Work Order)
+  const {
+    submissions: vendorSubmissions,
+    loading: submissionsLoading,
+    resolveVendor,
+    refetch: refetchSubmissions,
+  } = useWorkOrderVendorSubmissions(drawerWorkOrderId);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -181,6 +194,8 @@ export function EngagementsPage() {
     const engagement = engagements.find((e) => e.id === engagementId);
     if (engagement) {
       setSelectedEngagement(engagement);
+      // Let's assume engagement.id is the work_order_id under the hood for submissions
+      setDrawerWorkOrderId(engagement.id);
       setIsDrawerOpen(true);
     }
   };
@@ -189,7 +204,10 @@ export function EngagementsPage() {
     setIsDrawerOpen(false);
     setIsDrawerEditing(false);
     setDrawerError(null);
-    setTimeout(() => setSelectedEngagement(null), 300);
+    setTimeout(() => {
+      setSelectedEngagement(null);
+      setDrawerWorkOrderId(null);
+    }, 300);
   };
 
   const startDrawerEdit = () => {
@@ -763,6 +781,99 @@ export function EngagementsPage() {
                             </p>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Vendor Submissions */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Vendor Submissions
+                          </h3>
+                          <span className="bg-blue-100 text-blue-700 py-0.5 px-2 rounded-full text-xs font-bold">
+                            {vendorSubmissions?.length || 0}
+                          </span>
+                        </div>
+
+                        {submissionsLoading ? (
+                          <div className="flex justify-center p-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                          </div>
+                        ) : vendorSubmissions &&
+                          vendorSubmissions.length > 0 ? (
+                          <div className="space-y-3">
+                            {vendorSubmissions.map((sub) => (
+                              <div
+                                key={sub.id}
+                                className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm"
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {sub.vendor_name}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${sub.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
+                                  >
+                                    {sub.status === 'resolved'
+                                      ? 'Resolved'
+                                      : 'Pending'}
+                                  </span>
+                                </div>
+
+                                {sub.quoted_amount !== null && (
+                                  <p className="text-sm font-medium text-gray-900 mt-1 mb-2">
+                                    Quote: $
+                                    {sub.quoted_amount.toLocaleString(
+                                      undefined,
+                                      {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      }
+                                    )}
+                                  </p>
+                                )}
+
+                                <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
+                                  <FileText className="w-3.5 h-3.5" />
+                                  {sub.file_count || 0} document
+                                  {sub.file_count !== 1 ? 's' : ''} uploaded
+                                </div>
+
+                                {sub.status === 'pending' && (
+                                  <button
+                                    onClick={async () => {
+                                      setResolvingId(sub.id);
+                                      try {
+                                        await resolveVendor(sub.id);
+                                      } catch (err) {
+                                        console.error(
+                                          'Failed to resolve:',
+                                          err
+                                        );
+                                      } finally {
+                                        setResolvingId(null);
+                                      }
+                                    }}
+                                    disabled={resolvingId === sub.id}
+                                    className="w-full py-1.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold rounded transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+                                  >
+                                    {resolvingId === sub.id && (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    )}
+                                    Resolve Vendor
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-100">
+                            <p className="text-sm text-gray-500">
+                              No submissions yet.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : (

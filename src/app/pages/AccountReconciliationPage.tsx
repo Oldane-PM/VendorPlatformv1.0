@@ -20,7 +20,12 @@ import {
 interface ReconTransaction {
   id: string;
   date: string;
-  transactionType: 'Invoice Payment' | 'Funding' | 'Bank Fee' | 'FX Adjustment' | 'Manual Adjustment';
+  transactionType:
+    | 'Invoice Payment'
+    | 'Funding'
+    | 'Bank Fee'
+    | 'FX Adjustment'
+    | 'Manual Adjustment';
   reference: string;
   vendor?: string;
   amountIn: number;
@@ -49,7 +54,9 @@ export function AccountReconciliationPage() {
   const [actualBankBalance, setActualBankBalance] = useState('450000.00');
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
+    []
+  );
 
   // Mock reconciliation data
   const [transactions, setTransactions] = useState<ReconTransaction[]>([
@@ -246,7 +253,9 @@ export function AccountReconciliationPage() {
   // Handle close period
   const handleClosePeriod = () => {
     if (!canClosePeriod) {
-      alert('Cannot close period. Please ensure all transactions are matched and balanced.');
+      alert(
+        'Cannot close period. Please ensure all transactions are matched and balanced.'
+      );
       return;
     }
 
@@ -258,7 +267,9 @@ export function AccountReconciliationPage() {
 
     if (confirmed) {
       setPeriodStatus('Closed');
-      alert('✅ Period closed successfully! A reconciliation report has been generated.');
+      alert(
+        '✅ Period closed successfully! A reconciliation report has been generated.'
+      );
     }
   };
 
@@ -285,7 +296,9 @@ export function AccountReconciliationPage() {
     <div className="space-y-6 max-w-[1280px] mx-auto">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Account Reconciliation</h1>
+        <h1 className="text-3xl font-semibold text-gray-900">
+          Account Reconciliation
+        </h1>
         <p className="text-gray-500 mt-1">
           Validate and balance your accounts with complete audit trails
         </p>
@@ -356,7 +369,9 @@ export function AccountReconciliationPage() {
               </label>
               <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
-                  onClick={() => periodStatus === 'Closed' && setPeriodStatus('Open')}
+                  onClick={() =>
+                    periodStatus === 'Closed' && setPeriodStatus('Open')
+                  }
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                     periodStatus === 'Open'
                       ? 'bg-white text-gray-900 shadow-sm'
@@ -368,7 +383,9 @@ export function AccountReconciliationPage() {
                   Open Period
                 </button>
                 <button
-                  onClick={() => periodStatus === 'Open' && setPeriodStatus('Closed')}
+                  onClick={() =>
+                    periodStatus === 'Open' && setPeriodStatus('Closed')
+                  }
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                     periodStatus === 'Closed'
                       ? 'bg-white text-gray-900 shadow-sm'
@@ -416,7 +433,9 @@ export function AccountReconciliationPage() {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             Opening Balance
           </p>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(openingBalance)}</p>
+          <p className="text-xl font-bold text-gray-900">
+            {formatCurrency(openingBalance)}
+          </p>
           <p className="text-xs text-gray-500 mt-1">Start of period</p>
         </div>
 
@@ -430,7 +449,9 @@ export function AccountReconciliationPage() {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             Total Funds In
           </p>
-          <p className="text-xl font-bold text-green-600">{formatCurrency(totalFundsIn)}</p>
+          <p className="text-xl font-bold text-green-600">
+            {formatCurrency(totalFundsIn)}
+          </p>
           <p className="text-xs text-gray-500 mt-1">Incoming funds</p>
         </div>
 
@@ -444,7 +465,9 @@ export function AccountReconciliationPage() {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             Total Funds Out
           </p>
-          <p className="text-xl font-bold text-red-600">{formatCurrency(totalFundsOut)}</p>
+          <p className="text-xl font-bold text-red-600">
+            {formatCurrency(totalFundsOut)}
+          </p>
           <p className="text-xs text-gray-500 mt-1">Outgoing payments</p>
         </div>
 
@@ -470,8 +493,8 @@ export function AccountReconciliationPage() {
             isBalanced
               ? 'bg-green-50 border-green-200'
               : variance !== 0
-              ? 'bg-red-50 border-red-200'
-              : 'bg-white border-gray-200'
+                ? 'bg-red-50 border-red-200'
+                : 'bg-white border-gray-200'
           }`}
         >
           <div className="flex items-center gap-2 mb-3">
@@ -480,8 +503,8 @@ export function AccountReconciliationPage() {
                 isBalanced
                   ? 'bg-green-100'
                   : variance !== 0
-                  ? 'bg-red-100'
-                  : 'bg-gray-100'
+                    ? 'bg-red-100'
+                    : 'bg-gray-100'
               }`}
             >
               <CheckCircle2
@@ -489,8 +512,8 @@ export function AccountReconciliationPage() {
                   isBalanced
                     ? 'text-green-600'
                     : variance !== 0
-                    ? 'text-red-600'
-                    : 'text-gray-600'
+                      ? 'text-red-600'
+                      : 'text-gray-600'
                 }`}
               />
             </div>
@@ -541,10 +564,12 @@ export function AccountReconciliationPage() {
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Transaction Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Transaction Details
+              </h3>
               <p className="text-sm text-gray-500 mt-0.5">
-                {transactions.length} transactions • {transactions.filter((t) => t.matched).length}{' '}
-                matched
+                {transactions.length} transactions •{' '}
+                {transactions.filter((t) => t.matched).length} matched
               </p>
             </div>
             <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
@@ -561,7 +586,9 @@ export function AccountReconciliationPage() {
                 <th className="px-4 py-4 text-left">
                   <input
                     type="checkbox"
-                    checked={selectedTransactions.length === transactions.length}
+                    checked={
+                      selectedTransactions.length === transactions.length
+                    }
                     onChange={handleSelectAll}
                     className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
                   />
@@ -610,34 +637,48 @@ export function AccountReconciliationPage() {
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-700">{formatDate(transaction.date)}</span>
+                    <span className="text-sm text-gray-700">
+                      {formatDate(transaction.date)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-900">{transaction.transactionType}</span>
+                      <span className="text-sm text-gray-900">
+                        {transaction.transactionType}
+                      </span>
                       {transaction.aiSuggested && (
-                        <Sparkles className="w-4 h-4 text-purple-500" title="AI Match Suggested" />
+                        <Sparkles className="w-4 h-4 text-purple-500" />
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-blue-600">{transaction.reference}</span>
+                    <span className="text-sm font-mono text-blue-600">
+                      {transaction.reference}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm text-gray-900">{transaction.vendor || '-'}</span>
+                    <span className="text-sm text-gray-900">
+                      {transaction.vendor || '-'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <span className="text-sm font-semibold text-green-600">
-                      {transaction.amountIn > 0 ? formatCurrency(transaction.amountIn) : '-'}
+                      {transaction.amountIn > 0
+                        ? formatCurrency(transaction.amountIn)
+                        : '-'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <span className="text-sm font-semibold text-red-600">
-                      {transaction.amountOut > 0 ? formatCurrency(transaction.amountOut) : '-'}
+                      {transaction.amountOut > 0
+                        ? formatCurrency(transaction.amountOut)
+                        : '-'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-700">{transaction.category}</span>
+                    <span className="text-sm text-gray-700">
+                      {transaction.category}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -670,7 +711,9 @@ export function AccountReconciliationPage() {
           onClick={() => setShowBreakdown(!showBreakdown)}
           className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors"
         >
-          <h3 className="text-lg font-semibold text-gray-900">Reconciliation Breakdown</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Reconciliation Breakdown
+          </h3>
           {showBreakdown ? (
             <ChevronUp className="w-5 h-5 text-gray-400" />
           ) : (
@@ -690,7 +733,8 @@ export function AccountReconciliationPage() {
                   {formatCurrency(invoicePaymentsTotal)}
                 </p>
                 <p className="text-sm text-blue-600">
-                  {invoicePaymentsCount} transaction{invoicePaymentsCount !== 1 ? 's' : ''}
+                  {invoicePaymentsCount} transaction
+                  {invoicePaymentsCount !== 1 ? 's' : ''}
                 </p>
               </div>
 
@@ -743,7 +787,9 @@ export function AccountReconciliationPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Upload Bank Statement</h3>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Upload Bank Statement
+                </h3>
                 <button
                   onClick={() => setShowUploadModal(false)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -758,8 +804,15 @@ export function AccountReconciliationPage() {
                   <p className="text-lg font-medium text-gray-900 mb-2">
                     Drop your bank statement here
                   </p>
-                  <p className="text-sm text-gray-500 mb-4">or click to browse</p>
-                  <input type="file" id="statement-upload" className="hidden" accept=".pdf,.csv" />
+                  <p className="text-sm text-gray-500 mb-4">
+                    or click to browse
+                  </p>
+                  <input
+                    type="file"
+                    id="statement-upload"
+                    className="hidden"
+                    accept=".pdf,.csv"
+                  />
                   <label
                     htmlFor="statement-upload"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold cursor-pointer"
@@ -767,7 +820,9 @@ export function AccountReconciliationPage() {
                     <Upload className="w-4 h-4" />
                     Browse Files
                   </label>
-                  <p className="text-xs text-gray-400 mt-4">Supports PDF and CSV files</p>
+                  <p className="text-xs text-gray-400 mt-4">
+                    Supports PDF and CSV files
+                  </p>
                 </div>
               </div>
 
@@ -775,10 +830,12 @@ export function AccountReconciliationPage() {
                 <div className="flex gap-3">
                   <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-blue-900 mb-1">AI-Powered Matching</p>
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      AI-Powered Matching
+                    </p>
                     <p className="text-sm text-blue-700">
-                      Our system will automatically parse transactions and suggest matches with your
-                      existing records.
+                      Our system will automatically parse transactions and
+                      suggest matches with your existing records.
                     </p>
                   </div>
                 </div>

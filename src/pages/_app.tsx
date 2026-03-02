@@ -6,11 +6,13 @@ import '@/styles/tailwind.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isLogin = router.pathname === '/login';
+  const isStandalonePage =
+    router.pathname === '/login' ||
+    router.pathname.startsWith('/vendor-portal');
 
   return (
     <Providers>
-      {isLogin ? (
+      {isStandalonePage ? (
         <Component {...pageProps} />
       ) : (
         <Layout>
