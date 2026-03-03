@@ -266,6 +266,89 @@ export async function getEngagementById(
 }
 
 /**
+ * Fetch a vendor engagement, including its related work order vendor submissions
+ * and vendor submission files.
+ */
+export async function getVendorEngagementById(id: string): Promise<{
+  data: any | null; // using any here for brevity instead of creating entirely new types for the UI format expected, it'll mirror the previous one layout slightly
+  error: string | null;
+}> {
+  const sb = supabase();
+
+  // The UI currently expects a very specific structure
+  // 1. Get the vendor engagement record
+  const { data: ve, error: veError } = await sb
+    .from('vendor_engagements')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (veError) {
+    console.error('[engagements.repo] getVendorEngagementById error:', veError);
+    return { data: null, error: veError.message };
+  }
+
+  // 2. Fetch the work order
+  const { data: wo } = await sb
+    .from('work_orders')
+    .select('id, work_order_number, title, engagement_id')
+    .eq('id', ve.work_order_id)
+    .single();
+
+  // 3. Fetch the parent engagement
+  const engId = ve.engagement_id || wo?.engagement_id;
+  const { data: eng } = await sb
+    .from('engagements')
+    .select(
+      'id, engagement_number, title, department, assigned_approver, start_date, end_date, status'
+    )
+    .eq('id', engId)
+    .maybeSingle();
+
+  // 4. Fetch the submissions linked to this vendor and work order
+  let vendorSubmissions = [];
+  if (ve.vendor_id && ve.work_order_id) {
+    const { data: subs } = await sb
+      .from('work_order_vendor_submissions')
+      .select('*, work_order_vendor_submission_files(*)')
+      .eq('work_order_id', ve.work_order_id)
+      .eq('vendor_id', ve.vendor_id)
+      .order('submitted_at', { ascending: false });
+
+    vendorSubmissions = subs || [];
+  }
+
+  // Formatting response similarly to what UI expects
+  const projectTitle = eng?.title ?? wo?.title ?? ve.title ?? 'Unknown Project';
+
+  const detail = {
+    vendorEngagementId: ve.id,
+    engagementId: eng
+      ? `ENG-${String(eng.engagement_number).padStart(4, '0')}`
+      : (ve.engagement_id ?? '—'),
+    workOrderId: wo
+      ? `WO-${String(wo.work_order_number).padStart(4, '0')}`
+      : ve.work_order_id,
+    vendorName: ve.title,
+    projectTitle: projectTitle,
+    awardAmount: ve.amount,
+    totalPaidSoFar: 0, // This is mock since we don't have complete logic tracking it in the repo yet, but could be derived from paid invoices
+    remainingBalance: ve.amount,
+    status: ve.status ?? 'Active',
+    startDate: eng?.start_date ?? ve.created_at,
+    endDate: eng?.end_date ?? null,
+    department: eng?.department ?? 'IT Operations', // Fallback
+    awardedBy: eng?.assigned_approver ?? 'Admin',
+    decisionReason: 'Awarded via platform',
+    milestones: [],
+    invoices: [],
+    submissions: vendorSubmissions, // Attach the fetched submissions here!
+  };
+
+  return { data: detail, error: null };
+}
+
+/**
  * Fetch all Vendor Engagements from the vendor_engagements table
  * (created by the award flow) and join with work_orders and engagements
  * for human-readable IDs and correct project titles.
