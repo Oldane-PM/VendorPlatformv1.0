@@ -52,7 +52,9 @@ interface VendorEngagementCardProps {
   engagement: VendorEngagement;
 }
 
-export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) {
+export function VendorEngagementCard({
+  engagement,
+}: VendorEngagementCardProps) {
   const [expandedMilestones, setExpandedMilestones] = useState(false);
   const [expandedInvoices, setExpandedInvoices] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<string | null>(null);
@@ -65,14 +67,17 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
 
   // Calculate paid amount
   const paidAmount = engagement.invoices
-    .filter(inv => inv.status === 'Paid')
+    .filter((inv) => inv.status === 'Paid')
     .reduce((sum, inv) => sum + inv.amount, 0);
 
   const remainingAmount = engagement.awardAmount - paidAmount;
   const paymentProgress = (paidAmount / engagement.awardAmount) * 100;
 
   // Calculate milestone allocation
-  const totalMilestoneAllocation = engagement.milestones.reduce((sum, m) => sum + m.amount, 0);
+  const totalMilestoneAllocation = engagement.milestones.reduce(
+    (sum, m) => sum + m.amount,
+    0
+  );
   const allocationMatch = totalMilestoneAllocation === engagement.awardAmount;
 
   // Format currency
@@ -198,23 +203,35 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
       <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Total Award</p>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(engagement.awardAmount)}</p>
+            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+              Total Award
+            </p>
+            <p className="text-2xl font-bold text-gray-900">
+              {formatCurrency(engagement.awardAmount)}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Milestones</p>
-            <p className="text-2xl font-bold text-gray-900">{engagement.milestones.length}</p>
+            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+              Milestones
+            </p>
+            <p className="text-2xl font-bold text-gray-900">
+              {engagement.milestones.length}
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
             <p className="text-xs text-gray-600 mb-1">Paid</p>
-            <p className="text-sm font-semibold text-green-700">{formatCurrency(paidAmount)}</p>
+            <p className="text-sm font-semibold text-green-700">
+              {formatCurrency(paidAmount)}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-600 mb-1">Remaining</p>
-            <p className="text-sm font-semibold text-gray-700">{formatCurrency(remainingAmount)}</p>
+            <p className="text-sm font-semibold text-gray-700">
+              {formatCurrency(remainingAmount)}
+            </p>
           </div>
         </div>
 
@@ -222,7 +239,9 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-600">Payment Progress</span>
-            <span className="text-xs font-semibold text-gray-700">{paymentProgress.toFixed(0)}%</span>
+            <span className="text-xs font-semibold text-gray-700">
+              {paymentProgress.toFixed(0)}%
+            </span>
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -276,7 +295,10 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
                         type="text"
                         value={milestoneFormData.activity}
                         onChange={(e) =>
-                          setMilestoneFormData({ ...milestoneFormData, activity: e.target.value })
+                          setMilestoneFormData({
+                            ...milestoneFormData,
+                            activity: e.target.value,
+                          })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
@@ -289,7 +311,10 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
                         type="date"
                         value={milestoneFormData.dueDate}
                         onChange={(e) =>
-                          setMilestoneFormData({ ...milestoneFormData, dueDate: e.target.value })
+                          setMilestoneFormData({
+                            ...milestoneFormData,
+                            dueDate: e.target.value,
+                          })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
@@ -302,7 +327,10 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
                         type="number"
                         value={milestoneFormData.amount}
                         onChange={(e) =>
-                          setMilestoneFormData({ ...milestoneFormData, amount: e.target.value })
+                          setMilestoneFormData({
+                            ...milestoneFormData,
+                            amount: e.target.value,
+                          })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
@@ -412,16 +440,23 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
                       allocationMatch ? 'text-green-900' : 'text-amber-900'
                     }`}
                   >
-                    Total Milestone Allocation: {formatCurrency(totalMilestoneAllocation)}
+                    Total Milestone Allocation:{' '}
+                    {formatCurrency(totalMilestoneAllocation)}
                   </p>
                   <p className="text-gray-600">
                     Award Amount: {formatCurrency(engagement.awardAmount)}
                   </p>
                   {allocationMatch ? (
-                    <p className="text-green-700 font-medium mt-1">✓ Balanced</p>
+                    <p className="text-green-700 font-medium mt-1">
+                      ✓ Balanced
+                    </p>
                   ) : (
                     <p className="text-amber-700 font-medium mt-1">
-                      ⚠ Allocation {totalMilestoneAllocation > engagement.awardAmount ? 'exceeds' : 'below'} Award Amount
+                      ⚠ Allocation{' '}
+                      {totalMilestoneAllocation > engagement.awardAmount
+                        ? 'exceeds'
+                        : 'below'}{' '}
+                      Award Amount
                     </p>
                   )}
                 </div>
@@ -453,7 +488,9 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
           <div className="px-6 pb-6 space-y-2">
             {engagement.invoices.length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-sm text-gray-500 mb-3">No invoices generated yet.</p>
+                <p className="text-sm text-gray-500 mb-3">
+                  No invoices generated yet.
+                </p>
                 <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                   Generate Invoice
                 </button>
@@ -509,7 +546,7 @@ export function VendorEngagementCard({ engagement }: VendorEngagementCardProps) 
       {/* Footer - Quick Actions */}
       <div className="p-6">
         <Link
-          href={`/engagements/${engagement.vendorEngagementId}`}
+          href={`/vendor-engagements/${engagement.vendorEngagementId}`}
           className="block w-full py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors text-center flex items-center justify-center gap-2"
         >
           <Eye className="w-4 h-4" />
