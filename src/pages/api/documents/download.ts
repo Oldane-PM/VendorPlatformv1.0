@@ -10,17 +10,20 @@ export default async function handler(
     return res.status(405).end();
   }
 
-  const { path } = req.query;
+  const { path, bucket } = req.query;
 
   if (!path || typeof path !== 'string') {
     return res.status(400).json({ error: 'Missing defined path' });
   }
 
+  const targetBucket =
+    bucket === 'vendor_invoices' ? 'vendor_invoices' : 'vendor_uploads';
+
   try {
     const supabase = createServerClient();
 
     const { data, error } = await supabase.storage
-      .from('vendor_uploads')
+      .from(targetBucket)
       .createSignedUrl(path, 60 * 5); // 5 minutes validity
 
     if (error || !data?.signedUrl) {

@@ -70,6 +70,7 @@ export interface InvoiceDto {
   approved_date: string | null;
   paid_date: string | null;
   aging_days: number;
+  files?: Array<{ id: string; file_name: string; storage_path: string }>;
   created_at: string;
 }
 
@@ -100,6 +101,7 @@ export interface VendorEngagementDto {
   engagement_uuid: string | null;
   work_order_id: string;
   work_order_uuid: string | null;
+  vendor_id: string | null;
   vendor_name: string;
   project_title: string;
   award_amount: number;

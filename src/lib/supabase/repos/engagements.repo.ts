@@ -123,6 +123,7 @@ export interface VendorEngagementRow {
   engagement_uuid: string | null; // raw engagement UUID
   work_order_id: string; // mapping to rfq.id for UI compat or keeping as string
   work_order_uuid: string | null; // raw work order UUID
+  vendor_id: string | null;
   vendor_name: string;
   project_title: string;
   award_amount: number; // rfq.total
@@ -436,6 +437,7 @@ export async function listVendorEngagements(): Promise<{
       engagement_uuid: engId ?? null,
       work_order_id: woNumber,
       work_order_uuid: ve.work_order_id ?? null,
+      vendor_id: ve.vendor_id ?? null,
       vendor_name: ve.title, // vendor_engagements.title stores vendor name
       project_title: projectTitle,
       award_amount: ve.amount,
@@ -504,7 +506,7 @@ export async function getVendorEngagementByVeNumber(
   if (match.engagement_uuid) {
     const { data: invRows } = await sb
       .from('invoices')
-      .select('*')
+      .select('*, invoice_files(*)')
       .eq('engagement_id', match.engagement_uuid)
       .order('created_at', { ascending: true });
 
@@ -520,6 +522,12 @@ export async function getVendorEngagementByVeNumber(
       approved_date: null,
       paid_date: null,
       aging_days: 0,
+      files:
+        inv.invoice_files?.map((f: any) => ({
+          id: f.id,
+          file_name: f.file_name,
+          storage_path: f.storage_path,
+        })) || [],
       created_at: inv.created_at,
     }));
   }
@@ -527,19 +535,23 @@ export async function getVendorEngagementByVeNumber(
   // 4. Fetch the submissions linked to this vendor and work order
   let submissions: any[] = [];
   if (match.work_order_uuid && match.vendor_name) {
-    // We need to find the vendor ID. If we don't have it, we can query by name.
-    const { data: vendorData } = await sb
-      .from('vendors')
-      .select('id')
-      .eq('vendor_name', match.vendor_name)
-      .maybeSingle();
+    // Attempt to use match.vendor_id first, fallback to name
+    let actualVendorId = match.vendor_id;
+    if (!actualVendorId) {
+      const { data: vendorData } = await sb
+        .from('vendors')
+        .select('id')
+        .eq('vendor_name', match.vendor_name)
+        .maybeSingle();
+      actualVendorId = vendorData?.id;
+    }
 
-    if (vendorData?.id) {
+    if (actualVendorId) {
       const { data: subs } = await sb
         .from('work_order_vendor_submissions')
         .select('*, work_order_vendor_submission_files(*)')
         .eq('work_order_id', match.work_order_uuid)
-        .eq('vendor_id', vendorData.id)
+        .eq('vendor_id', actualVendorId)
         .order('submitted_at', { ascending: false });
       submissions = subs || [];
     }
