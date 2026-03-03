@@ -167,6 +167,24 @@ export async function markInvoiceAsPaid(
     ? `INV-${invoice.invoice_number} | ${paymentDetails.referenceNumber}`
     : paymentDetails.referenceNumber;
 
+  // 1.5. Calculate Fees and Updated Balance
+  let feeAmount = 0;
+  if (paymentDetails.fees) {
+    feeAmount += paymentDetails.fees.exchangeRateVariance || 0;
+    feeAmount += paymentDetails.fees.bankTransferFee || 0;
+    feeAmount += paymentDetails.fees.gctOnTransaction || 0;
+    feeAmount += paymentDetails.fees.otherFees || 0;
+  }
+
+  const { data: bankAccount } = await sb
+    .from('bank_accounts')
+    .select('current_balance')
+    .eq('id', paymentDetails.bankAccountId)
+    .single();
+
+  const currentBalance = bankAccount?.current_balance || 0;
+  const balanceAfter = currentBalance - paymentDetails.amount - feeAmount;
+
   // 2. Create Bank Transaction
   const { data: txn, error: txnError } = await sb
     .from('bank_transactions')
@@ -176,6 +194,8 @@ export async function markInvoiceAsPaid(
       type: 'Payment',
       vendor: invoice?.vendor_name || 'Unknown Vendor',
       amount: paymentDetails.amount,
+      fee_amount: feeAmount,
+      balance_after: balanceAfter,
       reference_number: referenceStr,
       notes: paymentDetails.notes,
     })
@@ -186,6 +206,20 @@ export async function markInvoiceAsPaid(
     console.error('[paymentProcessingRepo] insert bank_txn error:', txnError);
     // Note: in a real system we'd use a transaction/RPC to rollback the invoice update if this fails
     return { success: false, error: txnError.message };
+  }
+
+  // 2.5. Update Bank Account Balance
+  const { error: balanceError } = await sb
+    .from('bank_accounts')
+    .update({ current_balance: balanceAfter })
+    .eq('id', paymentDetails.bankAccountId);
+
+  if (balanceError) {
+    console.error(
+      '[paymentProcessingRepo] update bank_accounts error:',
+      balanceError
+    );
+    // We log but still proceed since the transaction was recorded
   }
 
   // 3. Insert Fees if any
