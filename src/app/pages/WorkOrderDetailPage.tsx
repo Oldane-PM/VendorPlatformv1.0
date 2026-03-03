@@ -33,7 +33,7 @@ import {
 import { useWorkOrderSubmissions } from '@/lib/hooks/useWorkOrderSubmissions';
 import { useVendorSubmissionDetail } from '@/lib/hooks/useVendorSubmissionDetail';
 import { useAwardSubmission } from '@/lib/hooks/useAwardSubmission';
-import { useWorkOrderVendorUploadLink } from '@/lib/hooks/useWorkOrderVendorUploadLink';
+import { useWorkOrderQuoteUploadLink } from '@/lib/hooks/useWorkOrderQuoteUploadLink';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -229,7 +229,7 @@ export function WorkOrderDetailPage() {
   } = useAwardSubmission();
 
   // Upload requests hook
-  const { createLink, loading: linkLoading } = useWorkOrderVendorUploadLink();
+  const { createLink, isLoading: linkLoading } = useWorkOrderQuoteUploadLink();
 
   // ── Fetch work order ──────────────────────────────────────────────────
   const fetchWorkOrder = useCallback(async () => {
@@ -1085,8 +1085,8 @@ export function WorkOrderDetailPage() {
                       allowedDocTypes: reqDocTypes,
                       expiresInHours: reqDocExpiry,
                     });
-                    if (result?.portalUrl) {
-                      setGeneratedLink(result.portalUrl);
+                    if (result?.data?.portalUrl) {
+                      setGeneratedLink(result.data.portalUrl);
                       setToastMessage('Link generated successfully!');
                     }
                   }}

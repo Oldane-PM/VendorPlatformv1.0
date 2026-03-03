@@ -1,4 +1,4 @@
-import { SubmissionListDto } from '../../supabase/repos/workOrderVendorPortalRepo';
+import { SubmissionListDto } from '../../supabase/repos/workOrderQuotePortalRepo';
 
 export const workOrdersVendorSubmissionsApiRepo = {
   async getVendorSubmissions(

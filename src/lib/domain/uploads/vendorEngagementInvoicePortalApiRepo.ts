@@ -1,18 +1,18 @@
 import {
-  PortalContextDto,
-  CreateSubmissionPayload,
-  FileMetaInput,
-  SignedUploadResult,
-  FinalizeInput,
-} from '../../supabase/repos/workOrderVendorPortalRepo';
+  InvoicePortalContextDto,
+  CreateInvoiceSubmissionPayload,
+  InvoiceFileMetaInput,
+  SignedInvoiceUploadResult,
+  FinalizeInvoiceInput,
+} from '../../supabase/repos/engagementInvoicePortalRepo';
 
-export const vendorWorkOrderPortalApiRepo = {
+export const vendorEngagementInvoicePortalApiRepo = {
   async getContext(
     requestId: string,
     token: string
-  ): Promise<PortalContextDto> {
+  ): Promise<InvoicePortalContextDto> {
     const response = await fetch(
-      `/api/vendor-portal/work-order/${requestId}/context?t=${encodeURIComponent(token)}`
+      `/api/vendor-portal/engagement/${requestId}/context?t=${encodeURIComponent(token)}`
     );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -24,10 +24,10 @@ export const vendorWorkOrderPortalApiRepo = {
   async createSubmission(
     requestId: string,
     token: string,
-    payload: CreateSubmissionPayload
+    payload: CreateInvoiceSubmissionPayload
   ): Promise<{ submissionId: string }> {
     const response = await fetch(
-      `/api/vendor-portal/work-order/${requestId}/submission?t=${encodeURIComponent(token)}`,
+      `/api/vendor-portal/engagement/${requestId}/submission?t=${encodeURIComponent(token)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,7 +36,7 @@ export const vendorWorkOrderPortalApiRepo = {
     );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to submit quote');
+      throw new Error(errorData.error || 'Failed to create invoice submission');
     }
     return response.json();
   },
@@ -45,10 +45,10 @@ export const vendorWorkOrderPortalApiRepo = {
     requestId: string,
     token: string,
     submissionId: string,
-    fileMeta: FileMetaInput
-  ): Promise<SignedUploadResult> {
+    fileMeta: InvoiceFileMetaInput
+  ): Promise<SignedInvoiceUploadResult> {
     const response = await fetch(
-      `/api/vendor-portal/work-order/${requestId}/create-upload-url?t=${encodeURIComponent(token)}`,
+      `/api/vendor-portal/engagement/${requestId}/create-upload-url?t=${encodeURIComponent(token)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,10 +67,10 @@ export const vendorWorkOrderPortalApiRepo = {
     token: string,
     submissionId: string,
     uploadFileId: string,
-    meta: FinalizeInput = {}
-  ): Promise<{ success: boolean }> {
+    meta: FinalizeInvoiceInput = {}
+  ): Promise<{ success: boolean; documentId: string }> {
     const response = await fetch(
-      `/api/vendor-portal/work-order/${requestId}/finalize-file?t=${encodeURIComponent(token)}`,
+      `/api/vendor-portal/engagement/${requestId}/finalize-file?t=${encodeURIComponent(token)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

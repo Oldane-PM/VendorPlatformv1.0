@@ -20,6 +20,8 @@ import {
 import { StatusBadge } from '../components/StatusBadge';
 import { useEngagementDetail } from '@/lib/hooks/useEngagements';
 import type { EngagementDetailDto } from '@/lib/domain/engagements/engagementsApiRepo';
+import { useEngagementInvoiceUploadLink } from '@/lib/hooks/useEngagementInvoiceUploadLink';
+import { LinkIcon } from 'lucide-react';
 
 type TabType =
   | 'overview'
@@ -34,6 +36,17 @@ export function EngagementDetail() {
   const id = router.query.engagementId as string | undefined;
   const { engagement, isLoading, error } = useEngagementDetail(id);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // Request Invoices State
+  const [showRequestInvoicesModal, setShowRequestInvoicesModal] =
+    useState(false);
+  const [reqInvoiceExpiry, setReqInvoiceExpiry] = useState(72);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { createLink, isLoading: linkLoading } =
+    useEngagementInvoiceUploadLink();
 
   // ── Loading state ─────────────────────────────────────────────────
   if (isLoading) {
@@ -134,7 +147,16 @@ export function EngagementDetail() {
                   ENG-{String(engagement.engagement_number).padStart(4, '0')}
                 </p>
               </div>
-              <StatusBadge status={engagement.status as any} />
+              <div className="flex items-center gap-3">
+                <StatusBadge status={engagement.status as any} />
+                <button
+                  onClick={() => setShowRequestInvoicesModal(true)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Upload className="w-4 h-4" />
+                  Request Invoices
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -235,6 +257,161 @@ export function EngagementDetail() {
           {activeTab === 'activity' && <ActivityTab engagement={engagement} />}
         </div>
       </div>
+
+      {/* ── Toast ──────────────────────────────────────────────────────── */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+          <Check className="w-5 h-5 flex-shrink-0" />
+          {toastMessage}
+        </div>
+      )}
+
+      {/* ── Request Invoices Modal ──────────────────────────────────── */}
+      {showRequestInvoicesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowRequestInvoicesModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-bold text-gray-900">
+                  Request Invoices
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowRequestInvoicesModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              {!generatedLink ? (
+                <>
+                  <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg flex gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Generate a secure, time-bound link for{' '}
+                      <strong>{engagement.vendor_name}</strong>. Provide this
+                      link to the vendor so they can securely upload invoices.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Link Expiry (hours)
+                    </label>
+                    <select
+                      value={reqInvoiceExpiry}
+                      onChange={(e) =>
+                        setReqInvoiceExpiry(Number(e.target.value))
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value={24}>24 hours</option>
+                      <option value={48}>48 hours</option>
+                      <option value={72}>72 hours (default)</option>
+                      <option value={168}>7 days</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 text-green-800 text-sm p-4 rounded-lg flex items-start gap-3">
+                    <Check className="w-5 h-5 flex-shrink-0 text-green-600" />
+                    <div>
+                      <p className="font-bold mb-1">
+                        Link Generated Successfully
+                      </p>
+                      <p>
+                        Copy the link below and send it to{' '}
+                        {engagement.vendor_name}. This link will expire in{' '}
+                        {reqInvoiceExpiry} hours.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Secure Upload Link
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedLink}
+                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(generatedLink);
+                            setCopiedLink(true);
+                            setTimeout(() => setCopiedLink(false), 3000);
+                          } catch (err) {}
+                        }}
+                        className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+                      >
+                        {copiedLink ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <DollarSign className="w-4 h-4 hidden" />
+                        )}
+                        {copiedLink ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowRequestInvoicesModal(false);
+                  setGeneratedLink(null);
+                }}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                {generatedLink ? 'Done' : 'Cancel'}
+              </button>
+
+              {!generatedLink && (
+                <button
+                  disabled={linkLoading || !engagement.vendor_id}
+                  onClick={async () => {
+                    if (!engagement.id || !engagement.vendor_id) return;
+                    const result = await createLink(
+                      engagement.id,
+                      engagement.vendor_id,
+                      {
+                        expiresInHours: reqInvoiceExpiry,
+                      }
+                    );
+                    if (result?.data?.portalUrl) {
+                      setGeneratedLink(result.data.portalUrl);
+                      setToastMessage('Link generated successfully!');
+                      setTimeout(() => setToastMessage(null), 3000);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <LinkIcon className="w-4 h-4" />
+                  )}
+                  Generate Link
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

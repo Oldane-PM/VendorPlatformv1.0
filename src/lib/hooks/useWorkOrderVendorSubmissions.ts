@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { workOrdersVendorSubmissionsApiRepo } from '../domain/uploads/workOrdersVendorSubmissionsApiRepo';
-import { SubmissionListDto } from '../supabase/repos/workOrderVendorPortalRepo';
+import { SubmissionListDto } from '../supabase/repos/workOrderQuotePortalRepo';
 
 export function useWorkOrderVendorSubmissions(workOrderId: string | null) {
   const [submissions, setSubmissions] = useState<SubmissionListDto[]>([]);

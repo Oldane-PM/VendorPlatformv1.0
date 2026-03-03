@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { finalizeFile } from '@/lib/supabase/repos/workOrderVendorPortalRepo';
+import { finalizeFile } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import {
-  useWorkOrderQuoteUploadPortal,
-  UploadFileState,
-} from '@/lib/hooks/useWorkOrderQuoteUploadPortal';
+  useEngagementInvoiceUploadPortal,
+  InvoiceUploadFileState,
+} from '@/lib/hooks/useEngagementInvoiceUploadPortal';
 import {
   Loader2,
   AlertCircle,
@@ -15,9 +15,9 @@ import {
   CreditCard,
   Building,
 } from 'lucide-react';
-import { CreateSubmissionPayload } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
+import { CreateInvoiceSubmissionPayload } from '@/lib/supabase/repos/engagementInvoicePortalRepo';
 
-export default function VendorWorkOrderPortalPage() {
+export default function VendorEngagementInvoicePortalPage() {
   const router = useRouter();
   const { requestId, t: token } = router.query;
   const isReady = router.isReady;
@@ -30,9 +30,9 @@ export default function VendorWorkOrderPortalPage() {
     loading,
     error,
     loadContext,
-    submitVendorInfo,
+    submitInvoiceMeta,
     uploadFiles,
-  } = useWorkOrderQuoteUploadPortal(requestId as string, token as string);
+  } = useEngagementInvoiceUploadPortal(requestId as string, token as string);
 
   useEffect(() => {
     if (isReady && requestId && token) {
@@ -41,14 +41,14 @@ export default function VendorWorkOrderPortalPage() {
   }, [isReady, requestId, token, loadContext]);
 
   // Form State
-  const [formData, setFormData] = useState<CreateSubmissionPayload>({
-    vendorName: '',
-    vendorEmail: '',
-    vendorPhone: '',
-    taxId: '',
-    vendorCode: '',
+  const [formData, setFormData] = useState<CreateInvoiceSubmissionPayload>({
+    invoiceNumber: '',
+    invoiceDate: '',
+    dueDate: '',
     currency: 'JMD',
-    quotedAmount: undefined,
+    subtotal: undefined,
+    taxTotal: undefined,
+    total: undefined,
     message: '',
   });
 
@@ -97,7 +97,7 @@ export default function VendorWorkOrderPortalPage() {
     e.preventDefault();
     setSubmittingInfo(true);
     try {
-      await submitVendorInfo(formData);
+      await submitInvoiceMeta(formData);
     } catch (err) {
       // Error is handled in the hook
     } finally {
@@ -131,30 +131,10 @@ export default function VendorWorkOrderPortalPage() {
   };
 
   const handleFiles = (files: File[]) => {
-    // Check against allowed types
-    const allowedDocTypes = context.allowedDocTypes;
-
-    // In a real app we would map mime type to doc type, but we can default to 'supporting' initially
-    // Since we need to know what doc type they mapped it to, we'll let them select it later or default it
     const newUploads = files.map((file) => {
-      // Very basic type mapping, a proper implementation would have a UI dropdown for each file
-      let inferredDocType = 'supporting';
-      if (
-        file.name.toLowerCase().includes('invoice') &&
-        allowedDocTypes.includes('invoice')
-      ) {
-        inferredDocType = 'invoice';
-      } else if (
-        file.name.toLowerCase().includes('quote') &&
-        allowedDocTypes.includes('quote')
-      ) {
-        inferredDocType = 'quote';
-      }
-
       return {
         id: Math.random().toString(36).substring(2, 9),
         file,
-        doc_type: inferredDocType,
         progress: 0,
         status: 'pending' as const,
       };
@@ -165,12 +145,6 @@ export default function VendorWorkOrderPortalPage() {
 
   const removeFile = (id: string) => {
     setUploads((prev) => prev.filter((u) => u.id !== id));
-  };
-
-  const updateDocType = (id: string, newType: string) => {
-    setUploads((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, doc_type: newType } : u))
-    );
   };
 
   const startUploadProcess = async () => {
@@ -193,7 +167,7 @@ export default function VendorWorkOrderPortalPage() {
   return (
     <>
       <Head>
-        <title>Secure Document Upload | Oldane</title>
+        <title>Secure Invoice Upload | Oldane</title>
       </Head>
 
       <div className="min-h-screen bg-gray-50 flex flex-col py-12 px-4 sm:px-6 lg:px-8">
@@ -204,10 +178,10 @@ export default function VendorWorkOrderPortalPage() {
               OP
             </div>
             <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              Secure Document Upload
+              Secure Invoice Upload
             </h2>
             <p className="mt-2 text-sm text-gray-500">
-              Submit your quote and related documents securely.
+              Submit your invoice securely for your engagement.
             </p>
           </div>
 
@@ -216,19 +190,25 @@ export default function VendorWorkOrderPortalPage() {
             <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 text-sm text-blue-800">
               <Building className="w-5 h-5 flex-shrink-0 text-blue-600 mt-0.5" />
               <div>
-                <p className="font-semibold mb-1">Upload Request Details</p>
-                {context.workOrderTitle && (
+                <p className="font-semibold mb-1">Engagement Details</p>
+                {context.engagementTitle && (
                   <p>
-                    <span className="text-blue-600/70">Work Order:</span>{' '}
-                    {context.workOrderNumber
-                      ? `${context.workOrderNumber} - `
+                    <span className="text-blue-600/70">Engagement:</span>{' '}
+                    {context.engagementNumber
+                      ? `${context.engagementNumber} - `
                       : ''}
-                    {context.workOrderTitle}
+                    {context.engagementTitle}
+                  </p>
+                )}
+                {context.vendorName && (
+                  <p className="mt-1">
+                    <span className="text-blue-600/70">Vendor:</span>{' '}
+                    {context.vendorName}
                   </p>
                 )}
                 <p className="mt-1">
-                  <span className="text-blue-600/70">Required Documents:</span>{' '}
-                  {context.allowedDocTypes.join(', ')}
+                  <span className="text-blue-600/70">Required:</span> Invoices
+                  Only
                 </p>
               </div>
             </div>
@@ -238,105 +218,63 @@ export default function VendorWorkOrderPortalPage() {
               <form onSubmit={handleInfoSubmit} className="space-y-6">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2">
-                    Vendor Information
+                    Invoice Information
                   </h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Please provide your details before uploading documents.
+                    Please provide your invoice details before uploading the
+                    document(s).
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="sm:col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Company / Vendor Name{' '}
-                        <span className="text-red-500">*</span>
+                        Invoice Number <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
-                        value={formData.vendorName}
+                        value={formData.invoiceNumber}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            vendorName: e.target.value,
+                            invoiceNumber: e.target.value,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Contact Email
+                        Invoice Date
                       </label>
                       <input
-                        type="email"
-                        value={formData.vendorEmail}
+                        type="date"
+                        value={formData.invoiceDate}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            vendorEmail: e.target.value,
+                            invoiceDate: e.target.value,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Contact Phone
+                        Due Date
                       </label>
                       <input
-                        type="tel"
-                        value={formData.vendorPhone}
+                        type="date"
+                        value={formData.dueDate}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            vendorPhone: e.target.value,
+                            dueDate: e.target.value,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Tax ID (TRN / EIN)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.taxId}
-                        onChange={(e) =>
-                          setFormData({ ...formData, taxId: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Vendor Code (if known)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.vendorCode}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            vendorCode: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">
-                    Quote Details
-                  </h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
                         Currency
@@ -355,10 +293,12 @@ export default function VendorWorkOrderPortalPage() {
                         <option value="CAD">CAD - Canadian Dollar</option>
                       </select>
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Quoted Amount (Optional)
+                        Total Amount (Optional)
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -368,11 +308,37 @@ export default function VendorWorkOrderPortalPage() {
                           type="number"
                           step="0.01"
                           min="0"
-                          value={formData.quotedAmount || ''}
+                          value={formData.total || ''}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              quotedAmount: e.target.value
+                              total: e.target.value
+                                ? parseFloat(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Subtotal (Optional)
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <CreditCard className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.subtotal || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              subtotal: e.target.value
                                 ? parseFloat(e.target.value)
                                 : undefined,
                             })
@@ -402,7 +368,7 @@ export default function VendorWorkOrderPortalPage() {
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={submittingInfo || !formData.vendorName.trim()}
+                    disabled={submittingInfo || !formData.invoiceNumber?.trim()}
                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
                   >
                     {submittingInfo ? (
@@ -423,8 +389,8 @@ export default function VendorWorkOrderPortalPage() {
                   Upload Complete!
                 </h3>
                 <p className="text-gray-600 mb-8 max-w-sm mx-auto">
-                  Your vendor information and documents have been successfully
-                  submitted for review.
+                  Your vendor invoices have been successfully submitted for
+                  review.
                 </p>
                 <button
                   type="button"
@@ -442,7 +408,7 @@ export default function VendorWorkOrderPortalPage() {
                     Upload Documents
                   </h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Please upload the required documents. Maximum{' '}
+                    Please upload the associated invoice documents. Maximum{' '}
                     {context.maxFiles} files,{' '}
                     {Math.round(context.maxTotalBytes / 1024 / 1024)}MB total.
                   </p>
@@ -506,27 +472,9 @@ export default function VendorWorkOrderPortalPage() {
                               <span className="text-xs text-gray-500">
                                 {(file.file.size / 1024 / 1024).toFixed(2)} MB
                               </span>
-
-                              {file.status === 'pending' ||
-                              file.status === 'error' ? (
-                                <select
-                                  value={file.doc_type}
-                                  onChange={(e) =>
-                                    updateDocType(file.id, e.target.value)
-                                  }
-                                  className="text-xs border border-gray-300 rounded p-1 max-w-[120px]"
-                                >
-                                  {context.allowedDocTypes.map((type) => (
-                                    <option key={type} value={type}>
-                                      {type}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                                  {file.doc_type}
-                                </span>
-                              )}
+                              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                Invoice
+                              </span>
                             </div>
 
                             {/* Status logic */}

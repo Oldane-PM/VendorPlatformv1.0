@@ -1,24 +1,27 @@
 import { useState, useCallback } from 'react';
-import { vendorWorkOrderPortalApiRepo } from '../domain/uploads/vendorWorkOrderPortalApiRepo';
+import { vendorEngagementInvoicePortalApiRepo } from '../domain/uploads/vendorEngagementInvoicePortalApiRepo';
 import {
-  PortalContextDto,
-  CreateSubmissionPayload,
-} from '../supabase/repos/workOrderVendorPortalRepo';
+  InvoicePortalContextDto,
+  CreateInvoiceSubmissionPayload,
+} from '../supabase/repos/engagementInvoicePortalRepo';
 
-export interface UploadFileState {
+export interface InvoiceUploadFileState {
   id: string; // temp client-side id
   file: File;
-  doc_type: string;
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   errorMessage?: string;
   uploadFileId?: string;
+  documentId?: string;
 }
 
-export function useVendorWorkOrderPortal(requestId: string, token: string) {
-  const [context, setContext] = useState<PortalContextDto | null>(null);
+export function useEngagementInvoiceUploadPortal(
+  requestId: string,
+  token: string
+) {
+  const [context, setContext] = useState<InvoicePortalContextDto | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
-  const [uploads, setUploads] = useState<UploadFileState[]>([]);
+  const [uploads, setUploads] = useState<InvoiceUploadFileState[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +30,7 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
     setLoading(true);
     setError(null);
     try {
-      const ctx = await vendorWorkOrderPortalApiRepo.getContext(
+      const ctx = await vendorEngagementInvoicePortalApiRepo.getContext(
         requestId,
         token
       );
@@ -39,11 +42,11 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
     }
   }, [requestId, token]);
 
-  const submitVendorInfo = async (payload: CreateSubmissionPayload) => {
+  const submitInvoiceMeta = async (payload: CreateInvoiceSubmissionPayload) => {
     setError(null);
     try {
       const { submissionId: newId } =
-        await vendorWorkOrderPortalApiRepo.createSubmission(
+        await vendorEngagementInvoicePortalApiRepo.createSubmission(
           requestId,
           token,
           payload
@@ -56,17 +59,16 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
     }
   };
 
-  const uploadFiles = async (filesToUpload: UploadFileState[]) => {
+  const uploadFiles = async (filesToUpload: InvoiceUploadFileState[]) => {
     if (!submissionId) throw new Error('No submission context found');
 
-    // Process sequentially or limited concurrency
     for (const f of filesToUpload) {
       setUploads((prev) =>
         prev.map((u) => (u.id === f.id ? { ...u, status: 'uploading' } : u))
       );
       try {
         const { signedUrl, uploadFileId } =
-          await vendorWorkOrderPortalApiRepo.createUploadUrl(
+          await vendorEngagementInvoicePortalApiRepo.createUploadUrl(
             requestId,
             token,
             submissionId,
@@ -74,11 +76,9 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
               fileName: f.file.name,
               mimeType: f.file.type,
               sizeBytes: f.file.size,
-              docType: f.doc_type,
             }
           );
 
-        // Actual PUT to supabase storage
         const putRes = await fetch(signedUrl, {
           method: 'PUT',
           body: f.file,
@@ -89,18 +89,24 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
 
         if (!putRes.ok) throw new Error('Storage upload failed');
 
-        // Finalize
-        await vendorWorkOrderPortalApiRepo.finalizeFile(
-          requestId,
-          token,
-          submissionId,
-          uploadFileId
-        );
+        const { documentId } =
+          await vendorEngagementInvoicePortalApiRepo.finalizeFile(
+            requestId,
+            token,
+            submissionId,
+            uploadFileId
+          );
 
         setUploads((prev) =>
           prev.map((u) =>
             u.id === f.id
-              ? { ...u, status: 'completed', uploadFileId, progress: 100 }
+              ? {
+                  ...u,
+                  status: 'completed',
+                  uploadFileId,
+                  documentId,
+                  progress: 100,
+                }
               : u
           )
         );
@@ -129,7 +135,7 @@ export function useVendorWorkOrderPortal(requestId: string, token: string) {
     loading,
     error,
     loadContext,
-    submitVendorInfo,
+    submitInvoiceMeta,
     uploadFiles,
   };
 }

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createSubmission } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
+import { createInvoiceSubmission } from '@/lib/supabase/repos/engagementInvoicePortalRepo';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -21,11 +21,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const payload = req.body;
-    const result = await createSubmission(requestId, t, payload);
+    const result = await createInvoiceSubmission(requestId, t, req.body);
     return res.status(200).json(result);
   } catch (error: any) {
-    console.error('[portal-submission] Error:', error);
+    console.error('[invoice-portal-submission] Error:', error);
     const msg = error.message || 'Failed to create submission';
     return res.status(400).json({ error: msg });
   }
