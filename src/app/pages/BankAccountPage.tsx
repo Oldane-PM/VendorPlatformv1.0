@@ -547,12 +547,12 @@ export function BankAccountPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`text-sm font-semibold ${
-                        transaction.amount > 0
+                        transaction.type === 'Funding'
                           ? 'text-green-600'
                           : 'text-red-600'
                       }`}
                     >
-                      {transaction.amount > 0 ? '+' : ''}
+                      {transaction.type === 'Funding' ? '+' : '-'}
                       {formatCurrency(transaction.amount, transaction.currency)}
                     </span>
                   </td>
@@ -582,9 +582,9 @@ export function BankAccountPage() {
                     transaction.exchangeRate !== 1.0 ? (
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          transaction.amount < 0
-                            ? 'bg-red-50 text-red-700'
-                            : 'bg-green-50 text-green-700'
+                          transaction.type === 'Funding'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-red-50 text-red-700'
                         }`}
                       >
                         {transaction.exchangeRate}
