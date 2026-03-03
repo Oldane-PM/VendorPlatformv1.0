@@ -453,6 +453,77 @@ export async function finalizeFile(
     doc_type: fileRow.doc_type,
   });
 
+  // 3. If doc_type is 'invoice', auto-create an invoice record
+  //    so it appears on the Invoices page
+  if (fileRow.doc_type === 'invoice') {
+    try {
+      // Look up vendor_id from the submission (may be null if not yet resolved)
+      const { data: subRow } = await client
+        .from('work_order_vendor_submissions')
+        .select('vendor_id')
+        .eq('id', submissionId)
+        .single();
+
+      const vendorId = subRow?.vendor_id ?? null;
+
+      // Look up the engagement_id from the work order
+      const { data: wo } = await client
+        .from('work_orders')
+        .select('engagement_id')
+        .eq('id', req.work_order_id)
+        .single();
+
+      const engagementId = wo?.engagement_id ?? null;
+
+      // Create the invoice row
+      const { data: invoiceRow } = await client
+        .from('invoices')
+        .insert({
+          vendor_id: vendorId,
+          engagement_id: engagementId,
+          invoice_number: null,
+          status: 'Submitted',
+          total_amount: null,
+          due_date: null,
+          created_by: null,
+        })
+        .select('id')
+        .single();
+
+      if (invoiceRow) {
+        // Create the invoice_files row linked to the invoice
+        await client.from('invoice_files').insert({
+          invoice_id: invoiceRow.id,
+          storage_path: fileRow.storage_path,
+          file_name: fileRow.file_name,
+          mime_type: fileRow.mime_type,
+        });
+
+        // Audit — invoice auto-created from work order upload
+        await audit(
+          req.org_id,
+          'invoice.created_from_upload',
+          'invoice',
+          invoiceRow.id,
+          null,
+          {
+            work_order_id: req.work_order_id,
+            vendor_id: vendorId,
+            document_id: doc.id,
+            file_name: fileRow.file_name,
+          }
+        );
+      }
+    } catch (invoiceErr: any) {
+      // Don't fail the entire upload if invoice creation fails
+      console.error(
+        '[finalizeUpload] Invoice auto-creation failed:',
+        invoiceErr?.message
+      );
+    }
+  }
+
+  // 4. Update the upload file row
   await client
     .from('work_order_vendor_submission_files')
     .update({
@@ -574,6 +645,34 @@ export async function resolveVendorForSubmission(
         })
         .select()
         .maybeSingle(); // ignore unique conflicts if already linked somehow
+    }
+
+    // Backfill vendor_id on any invoices auto-created from this submission's files
+    const storedFiles = await client
+      .from('work_order_vendor_submission_files')
+      .select('storage_path')
+      .eq('submission_id', submissionId)
+      .eq('status', 'stored');
+
+    const paths = (storedFiles.data ?? []).map((r: any) => r.storage_path);
+
+    if (paths.length > 0) {
+      const { data: invoiceFileRows } = await client
+        .from('invoice_files')
+        .select('invoice_id')
+        .in('storage_path', paths);
+
+      const invoiceIds = [
+        ...new Set((invoiceFileRows ?? []).map((r: any) => r.invoice_id)),
+      ];
+
+      if (invoiceIds.length > 0) {
+        await client
+          .from('invoices')
+          .update({ vendor_id: matchedVendorId })
+          .in('id', invoiceIds)
+          .is('vendor_id', null); // only backfill if still unset
+      }
     }
   }
 

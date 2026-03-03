@@ -1,48 +1,55 @@
-import { useState, useCallback, useEffect } from 'react';
-import { getVendorEngagementDetail } from '../domain/engagements/engagementsApiRepo';
+/**
+ * useVendorEngagementDetail — fetch a single vendor engagement by VE number.
+ */
+import { useState, useEffect, useCallback } from 'react';
+import {
+  VendorEngagementDto,
+  getVendorEngagement,
+} from '@/lib/domain/engagements/engagementsApiRepo';
 
 interface UseVendorEngagementDetailReturn {
-  vendorEngagement: any | null;
+  detail: VendorEngagementDto | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
 export function useVendorEngagementDetail(
-  id?: string
+  veId: string | undefined
 ): UseVendorEngagementDetailReturn {
-  const [vendorEngagement, setVendorEngagement] = useState<any | null>(null);
+  const [detail, setDetail] = useState<VendorEngagementDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
-    if (!id) {
-      setIsLoading(false);
-      return;
-    }
+    if (!veId) return;
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setIsLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await getVendorEngagementDetail(id);
+      const { data, error: fetchError } = await getVendorEngagement(veId);
 
       if (fetchError) {
         setError(fetchError);
-        setVendorEngagement(null);
+        setDetail(null);
       } else {
-        setVendorEngagement(data);
+        setDetail(data ?? null);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch vendor engagement detail');
-      setVendorEngagement(null);
+      setDetail(null);
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [veId]);
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    if (veId) {
+      refetch();
+    } else {
+      setIsLoading(false);
+    }
+  }, [veId, refetch]);
 
-  return { vendorEngagement, isLoading, error, refetch };
+  return { detail, isLoading, error, refetch };
 }

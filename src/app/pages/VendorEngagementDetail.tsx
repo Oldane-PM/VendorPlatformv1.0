@@ -30,9 +30,10 @@ import {
   Trash2,
   Save,
   CheckCircle,
+  Loader2,
 } from 'lucide-react';
 import { UploadVendorInvoiceModal } from '../components/UploadVendorInvoiceModal';
-import { useVendorEngagementDetail } from '../../lib/hooks/useVendorEngagementDetail';
+import { useVendorEngagementDetail } from '@/lib/hooks/useVendorEngagementDetail';
 
 interface Milestone {
   id: string;
@@ -60,7 +61,8 @@ interface Invoice {
 export function VendorEngagementDetail() {
   const router = useRouter();
   const id = router.query.engagementId as string | undefined;
-  const { vendorEngagement, isLoading, error } = useVendorEngagementDetail(id);
+
+  const { detail, isLoading, error } = useVendorEngagementDetail(id);
 
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showUploadInvoiceModal, setShowUploadInvoiceModal] = useState(false);
@@ -79,47 +81,61 @@ export function VendorEngagementDetail() {
   });
   const [showAddMilestone, setShowAddMilestone] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen pt-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (error || !vendorEngagement) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-red-800">
-            Error Loading Engagement
-          </h3>
-          <p className="mt-2 text-sm text-red-700">
-            {error || 'Engagement not found'}
-          </p>
-          <button
-            onClick={() => router.push('/vendor-engagements')}
-            className="mt-4 inline-flex items-center text-sm font-medium text-red-800 hover:text-red-900"
-          >
-            &larr; Back to vendor engagements
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Map live data to the component's expected shape
+  const vendorEngagement = detail
+    ? (() => {
+        const totalPaid = detail.invoices
+          .filter((inv) => inv.status.toLowerCase() === 'paid')
+          .reduce((sum, inv) => sum + inv.amount, 0);
+        return {
+          vendorEngagementId: detail.vendor_engagement_id,
+          engagementId: detail.engagement_id,
+          workOrderId: detail.work_order_id,
+          vendorName: detail.vendor_name,
+          projectTitle: detail.project_title,
+          awardAmount: detail.award_amount,
+          totalPaidSoFar: totalPaid,
+          remainingBalance: detail.award_amount - totalPaid,
+          status:
+            detail.status.charAt(0).toUpperCase() + detail.status.slice(1),
+          startDate: detail.start_date ?? new Date().toISOString(),
+          endDate: detail.end_date ?? undefined,
+          department: detail.department ?? 'Unassigned',
+          awardedBy: detail.awarded_by ?? 'System',
+          decisionReason: detail.decision_reason ?? '',
+          submissions: detail.submissions || [],
+          milestones: detail.milestones.map((m) => ({
+            id: m.id,
+            name: m.activity,
+            status: m.status as Milestone['status'],
+            dueDate: m.due_date,
+            amount: m.amount,
+          })),
+          invoices: detail.invoices.map((inv) => ({
+            id: inv.invoice_number,
+            amount: inv.amount,
+            status: (inv.status.charAt(0).toUpperCase() +
+              inv.status.slice(1)) as Invoice['status'],
+            createdDate: inv.created_at,
+            description: `Invoice ${inv.invoice_number}`,
+          })),
+        };
+      })()
+    : null;
 
   // Calculate milestone allocation (fallback to 0 if milestones don't exist yet)
   const totalMilestoneAllocation =
-    vendorEngagement.milestones?.reduce(
+    vendorEngagement?.milestones?.reduce(
       (sum: number, m: any) => sum + m.amount,
       0
-    ) || 0;
+    ) ?? 0;
   const allocationMatch =
-    totalMilestoneAllocation === vendorEngagement.awardAmount;
+    totalMilestoneAllocation === (vendorEngagement?.awardAmount ?? 0);
 
   // Calculate payment progress
-  const paymentProgress =
-    (vendorEngagement.totalPaidSoFar / vendorEngagement.awardAmount) * 100;
+  const paymentProgress = vendorEngagement
+    ? (vendorEngagement.totalPaidSoFar / vendorEngagement.awardAmount) * 100
+    : 0;
 
   // Handle edit milestone
   const handleEditMilestone = (milestone: any) => {
@@ -200,6 +216,7 @@ export function VendorEngagementDetail() {
 
   // Handle invoice generation
   const handleGenerateInvoice = () => {
+    if (!vendorEngagement) return;
     const amount = parseFloat(invoiceAmount);
 
     if (!amount || amount <= 0) {
@@ -292,11 +309,45 @@ export function VendorEngagementDetail() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">
+          Loading vendor engagement...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !vendorEngagement) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-red-800 font-medium">
+            Error loading vendor engagement
+          </h3>
+          <p className="text-red-600 text-sm mt-1">
+            {error ?? 'Vendor engagement not found.'}
+          </p>
+          <button
+            onClick={() => router.push('/vendor-engagements')}
+            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-700 hover:text-red-800"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Vendor Engagements
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
       <button
-        onClick={() => router.push('/engagements')}
+        onClick={() => router.push('/vendor-engagements')}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

@@ -111,6 +111,7 @@ export interface VendorEngagementDto {
   decision_reason: string | null;
   milestones: MilestoneDto[];
   invoices: InvoiceDto[];
+  submissions?: any[];
 }
 
 export interface EngagementDetailDto {
@@ -178,17 +179,21 @@ export async function listVendorEngagements(): Promise<{
   }
 }
 
-export async function getVendorEngagementDetail(id: string): Promise<{
-  data: any | null;
-  error: string | null;
-}> {
+/**
+ * Fetch a single vendor engagement by VE number (e.g. "VE-0001").
+ */
+export async function getVendorEngagement(
+  veId: string
+): Promise<{ data: VendorEngagementDto | null; error: string | null }> {
   try {
-    const res = await fetch(`/api/vendor-engagements/${id}`);
+    const res = await fetch(
+      `/api/vendor-engagements/${encodeURIComponent(veId)}`
+    );
     if (!res.ok) {
       const err = await res.json();
       return {
         data: null,
-        error: err.error || 'Failed to fetch vendor engagement detail',
+        error: err.error || 'Failed to fetch vendor engagement',
       };
     }
     const json = await res.json();

@@ -120,7 +120,9 @@ export interface MilestoneRow {
 export interface VendorEngagementRow {
   vendor_engagement_id: string; // rfq.id
   engagement_id: string; // parent engagement.id
+  engagement_uuid: string | null; // raw engagement UUID
   work_order_id: string; // mapping to rfq.id for UI compat or keeping as string
+  work_order_uuid: string | null; // raw work order UUID
   vendor_name: string;
   project_title: string;
   award_amount: number; // rfq.total
@@ -132,6 +134,7 @@ export interface VendorEngagementRow {
   decision_reason: string | null;
   milestones: MilestoneRow[];
   invoices: InvoiceRow[];
+  submissions?: any[];
 }
 
 /** Full engagement detail including all sub-table data. */
@@ -448,6 +451,109 @@ export async function listVendorEngagements(): Promise<{
   });
 
   return { data: results, error: null };
+}
+
+/**
+ * Fetch a single Vendor Engagement by its human-readable VE number (e.g. "VE-0001").
+ * Also populates milestones and invoices from their respective tables.
+ */
+export async function getVendorEngagementByVeNumber(
+  veNumber: string
+): Promise<{ data: VendorEngagementRow | null; error: string | null }> {
+  // 1. Reuse listVendorEngagements to get the full list and find the match
+  const { data: allVe, error: listError } = await listVendorEngagements();
+
+  if (listError) {
+    return { data: null, error: listError };
+  }
+
+  const match = (allVe ?? []).find(
+    (ve) => ve.vendor_engagement_id === veNumber
+  );
+
+  if (!match) {
+    return { data: null, error: `Vendor engagement ${veNumber} not found.` };
+  }
+
+  const sb = supabase();
+
+  // 2. Fetch milestones — they are linked via engagement_rfqs for the engagement
+  let milestones: MilestoneRow[] = [];
+  if (match.engagement_uuid) {
+    // Get RFQ IDs for this engagement
+    const { data: rfqs } = await sb
+      .from('engagement_rfqs')
+      .select('id')
+      .eq('engagement_id', match.engagement_uuid);
+
+    const rfqIds = (rfqs ?? []).map((r: any) => r.id);
+
+    if (rfqIds.length > 0) {
+      const { data: milestoneRows } = await sb
+        .from('vendor_engagement_milestones')
+        .select('*')
+        .in('rfq_id', rfqIds)
+        .order('due_date', { ascending: true });
+
+      milestones = (milestoneRows ?? []) as MilestoneRow[];
+    }
+  }
+
+  // 3. Fetch invoices linked to this vendor + engagement
+  let invoices: InvoiceRow[] = [];
+  if (match.engagement_uuid) {
+    const { data: invRows } = await sb
+      .from('invoices')
+      .select('*')
+      .eq('engagement_id', match.engagement_uuid)
+      .order('created_at', { ascending: true });
+
+    invoices = (invRows ?? []).map((inv: any) => ({
+      id: inv.id,
+      engagement_id: inv.engagement_id,
+      invoice_number: inv.invoice_number ?? `INV-${inv.id.slice(0, 8)}`,
+      vendor_name: match.vendor_name,
+      amount: inv.total_amount ?? 0,
+      due_date: inv.due_date ?? null,
+      status: inv.status ?? 'Submitted',
+      submitted_date: inv.created_at,
+      approved_date: null,
+      paid_date: null,
+      aging_days: 0,
+      created_at: inv.created_at,
+    }));
+  }
+
+  // 4. Fetch the submissions linked to this vendor and work order
+  let submissions: any[] = [];
+  if (match.work_order_uuid && match.vendor_name) {
+    // We need to find the vendor ID. If we don't have it, we can query by name.
+    const { data: vendorData } = await sb
+      .from('vendors')
+      .select('id')
+      .eq('vendor_name', match.vendor_name)
+      .maybeSingle();
+
+    if (vendorData?.id) {
+      const { data: subs } = await sb
+        .from('work_order_vendor_submissions')
+        .select('*, work_order_vendor_submission_files(*)')
+        .eq('work_order_id', match.work_order_uuid)
+        .eq('vendor_id', vendorData.id)
+        .order('submitted_at', { ascending: false });
+      submissions = subs || [];
+    }
+  }
+
+  return {
+    data: {
+      ...match,
+      milestones,
+      invoices,
+      submissions, // Attach the fetched submissions here!
+    },
+    error: null,
+  };
 }
 
 /**

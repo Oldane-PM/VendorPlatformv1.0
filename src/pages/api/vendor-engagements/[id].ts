@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getVendorEngagementById } from '../../../lib/supabase/repos/engagements.repo';
+import { getVendorEngagementByVeNumber } from '../../../lib/supabase/repos/engagements.repo';
 
 export default async function handler(
   req: NextApiRequest,
@@ -13,13 +13,14 @@ export default async function handler(
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
-    return res.status(400).json({ data: null, error: 'Invalid ID' });
+    return res.status(400).json({ data: null, error: 'Missing id parameter' });
   }
 
-  const { data, error } = await getVendorEngagementById(id);
+  const { data, error } = await getVendorEngagementByVeNumber(id);
 
   if (error) {
-    return res.status(500).json({ data: null, error });
+    const status = error.includes('not found') ? 404 : 500;
+    return res.status(status).json({ data: null, error });
   }
 
   return res.status(200).json({ data, error: null });
