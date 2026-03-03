@@ -30,13 +30,22 @@ import {
   Trash2,
   Save,
   CheckCircle,
+  Loader2,
 } from 'lucide-react';
 import { UploadVendorInvoiceModal } from '../components/UploadVendorInvoiceModal';
+import { useVendorEngagementDetail } from '@/lib/hooks/useVendorEngagementDetail';
 
 interface Milestone {
   id: string;
   name: string;
-  status: 'Pending' | 'In Progress' | 'Submitted' | 'Approved' | 'Paid' | 'Not Started' | 'Completed';
+  status:
+    | 'Pending'
+    | 'In Progress'
+    | 'Submitted'
+    | 'Approved'
+    | 'Paid'
+    | 'Not Started'
+    | 'Completed';
   dueDate: string;
   amount: number;
 }
@@ -54,7 +63,9 @@ export function VendorEngagementDetail() {
   const id = router.query.engagementId as string | undefined;
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showUploadInvoiceModal, setShowUploadInvoiceModal] = useState(false);
-  const [invoiceType, setInvoiceType] = useState<'Full Payment' | 'Partial Payment'>('Partial Payment');
+  const [invoiceType, setInvoiceType] = useState<
+    'Full Payment' | 'Partial Payment'
+  >('Partial Payment');
   const [invoiceAmount, setInvoiceAmount] = useState('');
   const [invoiceDescription, setInvoiceDescription] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -67,83 +78,59 @@ export function VendorEngagementDetail() {
   });
   const [showAddMilestone, setShowAddMilestone] = useState(false);
 
-  // Mock vendor engagement data
-  const vendorEngagement = {
-    vendorEngagementId: 'VE-0001',
-    engagementId: 'ENG-0001',
-    workOrderId: 'WO-0001',
-    vendorName: 'CloudTech Solutions',
-    projectTitle: 'Cloud Infrastructure Modernization',
-    awardAmount: 285000,
-    totalPaidSoFar: 85000,
-    remainingBalance: 200000,
-    status: 'Active',
-    startDate: '2026-02-20',
-    endDate: undefined,
-    department: 'IT Operations',
-    awardedBy: 'Sarah Johnson',
-    decisionReason: 'Strong proposal with proven AWS expertise and competitive pricing',
-    milestones: [
-      {
-        id: 'M1',
-        name: 'Planning & Assessment',
-        status: 'Paid' as Milestone['status'],
-        dueDate: '2026-03-15',
-        amount: 45000,
-      },
-      {
-        id: 'M2',
-        name: 'Infrastructure Migration',
-        status: 'In Progress' as Milestone['status'],
-        dueDate: '2026-04-30',
-        amount: 180000,
-      },
-      {
-        id: 'M3',
-        name: 'Post-Migration Support',
-        status: 'Pending' as Milestone['status'],
-        dueDate: '2026-10-31',
-        amount: 60000,
-      },
-    ],
-    invoices: [
-      {
-        id: 'INV-0001',
-        amount: 45000,
-        status: 'Paid' as Invoice['status'],
-        createdDate: '2026-03-01',
-        description: 'Planning & Assessment Phase',
-      },
-      {
-        id: 'INV-0002',
-        amount: 40000,
-        status: 'Approved' as Invoice['status'],
-        createdDate: '2026-03-15',
-        description: 'Initial Infrastructure Setup',
-      },
-      {
-        id: 'INV-0003',
-        amount: 35000,
-        status: 'Submitted' as Invoice['status'],
-        createdDate: '2026-04-01',
-        description: 'Database Migration',
-      },
-      {
-        id: 'INV-0004',
-        amount: 25000,
-        status: 'Draft' as Invoice['status'],
-        createdDate: '2026-04-10',
-        description: 'Progress Payment - Phase 2',
-      },
-    ],
-  };
+  const { detail, isLoading, error } = useVendorEngagementDetail(id);
+
+  // Map live data to the component's expected shape
+  const vendorEngagement = detail
+    ? (() => {
+        const totalPaid = detail.invoices
+          .filter((inv) => inv.status.toLowerCase() === 'paid')
+          .reduce((sum, inv) => sum + inv.amount, 0);
+        return {
+          vendorEngagementId: detail.vendor_engagement_id,
+          engagementId: detail.engagement_id,
+          workOrderId: detail.work_order_id,
+          vendorName: detail.vendor_name,
+          projectTitle: detail.project_title,
+          awardAmount: detail.award_amount,
+          totalPaidSoFar: totalPaid,
+          remainingBalance: detail.award_amount - totalPaid,
+          status:
+            detail.status.charAt(0).toUpperCase() + detail.status.slice(1),
+          startDate: detail.start_date ?? new Date().toISOString(),
+          endDate: detail.end_date ?? undefined,
+          department: detail.department ?? 'Unassigned',
+          awardedBy: detail.awarded_by ?? 'System',
+          decisionReason: detail.decision_reason ?? '',
+          milestones: detail.milestones.map((m) => ({
+            id: m.id,
+            name: m.activity,
+            status: m.status as Milestone['status'],
+            dueDate: m.due_date,
+            amount: m.amount,
+          })),
+          invoices: detail.invoices.map((inv) => ({
+            id: inv.invoice_number,
+            amount: inv.amount,
+            status: (inv.status.charAt(0).toUpperCase() +
+              inv.status.slice(1)) as Invoice['status'],
+            createdDate: inv.created_at,
+            description: `Invoice ${inv.invoice_number}`,
+          })),
+        };
+      })()
+    : null;
 
   // Calculate milestone allocation
-  const totalMilestoneAllocation = vendorEngagement.milestones.reduce((sum, m) => sum + m.amount, 0);
-  const allocationMatch = totalMilestoneAllocation === vendorEngagement.awardAmount;
+  const totalMilestoneAllocation =
+    vendorEngagement?.milestones.reduce((sum, m) => sum + m.amount, 0) ?? 0;
+  const allocationMatch =
+    totalMilestoneAllocation === (vendorEngagement?.awardAmount ?? 0);
 
   // Calculate payment progress
-  const paymentProgress = (vendorEngagement.totalPaidSoFar / vendorEngagement.awardAmount) * 100;
+  const paymentProgress = vendorEngagement
+    ? (vendorEngagement.totalPaidSoFar / vendorEngagement.awardAmount) * 100
+    : 0;
 
   // Handle edit milestone
   const handleEditMilestone = (milestone: Milestone) => {
@@ -224,40 +211,47 @@ export function VendorEngagementDetail() {
 
   // Handle invoice generation
   const handleGenerateInvoice = () => {
+    if (!vendorEngagement) return;
     const amount = parseFloat(invoiceAmount);
-    
+
     if (!amount || amount <= 0) {
       alert('Please enter a valid invoice amount');
       return;
     }
-    
+
     if (amount > vendorEngagement.remainingBalance) {
-      alert(`Invoice amount cannot exceed remaining balance of ${formatCurrency(vendorEngagement.remainingBalance)}`);
+      alert(
+        `Invoice amount cannot exceed remaining balance of ${formatCurrency(vendorEngagement.remainingBalance)}`
+      );
       return;
     }
-    
+
     if (!invoiceDescription) {
       alert('Please provide an invoice description');
       return;
     }
-    
+
     // Simulate invoice creation
-    const newInvoiceId = 'INV-' + Math.floor(Math.random() * 9000 + 1000).toString().padStart(4, '0');
-    
+    const newInvoiceId =
+      'INV-' +
+      Math.floor(Math.random() * 9000 + 1000)
+        .toString()
+        .padStart(4, '0');
+
     alert(
       `✅ Invoice Generated Successfully!\\n\\n` +
-      `Invoice ID: ${newInvoiceId}\\n` +
-      `Type: ${invoiceType}\\n` +
-      `Amount: ${formatCurrency(amount)}\\n` +
-      `Vendor Engagement: ${vendorEngagement.vendorEngagementId}\\n\\n` +
-      `The invoice has been created and is ready for submission.`
+        `Invoice ID: ${newInvoiceId}\\n` +
+        `Type: ${invoiceType}\\n` +
+        `Amount: ${formatCurrency(amount)}\\n` +
+        `Vendor Engagement: ${vendorEngagement.vendorEngagementId}\\n\\n` +
+        `The invoice has been created and is ready for submission.`
     );
-    
+
     setShowInvoiceModal(false);
     setInvoiceAmount('');
     setInvoiceDescription('');
     setUploadedFiles([]);
-    
+
     // Navigate to invoices page
     setTimeout(() => {
       router.push('/invoices');
@@ -310,11 +304,45 @@ export function VendorEngagementDetail() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">
+          Loading vendor engagement...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !vendorEngagement) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+        <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-red-800 font-medium">
+            Error loading vendor engagement
+          </h3>
+          <p className="text-red-600 text-sm mt-1">
+            {error ?? 'Vendor engagement not found.'}
+          </p>
+          <button
+            onClick={() => router.push('/vendor-engagements')}
+            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-700 hover:text-red-800"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Vendor Engagements
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Back Button */}
       <button
-        onClick={() => router.push('/engagements')}
+        onClick={() => router.push('/vendor-engagements')}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -337,11 +365,16 @@ export function VendorEngagementDetail() {
                 {vendorEngagement.status}
               </span>
             </div>
-            <h2 className="text-lg text-gray-700 mb-4">{vendorEngagement.projectTitle}</h2>
+            <h2 className="text-lg text-gray-700 mb-4">
+              {vendorEngagement.projectTitle}
+            </h2>
           </div>
           <button
             onClick={() => setShowUploadInvoiceModal(true)}
-            disabled={vendorEngagement.status === 'Terminated' || vendorEngagement.remainingBalance === 0}
+            disabled={
+              vendorEngagement.status === 'Terminated' ||
+              vendorEngagement.remainingBalance === 0
+            }
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-5 h-5" />
@@ -352,26 +385,36 @@ export function VendorEngagementDetail() {
         {/* Key Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Award Amount</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+              Award Amount
+            </p>
             <p className="text-2xl font-semibold text-gray-900">
               {formatCurrency(vendorEngagement.awardAmount)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Total Paid</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+              Total Paid
+            </p>
             <p className="text-2xl font-semibold text-green-700">
               {formatCurrency(vendorEngagement.totalPaidSoFar)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Remaining Balance</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+              Remaining Balance
+            </p>
             <p className="text-2xl font-semibold text-blue-700">
               {formatCurrency(vendorEngagement.remainingBalance)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Payment Progress</p>
-            <p className="text-2xl font-semibold text-gray-900">{paymentProgress.toFixed(0)}%</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+              Payment Progress
+            </p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {paymentProgress.toFixed(0)}%
+            </p>
           </div>
         </div>
 
@@ -391,10 +434,14 @@ export function VendorEngagementDetail() {
         <div className="lg:col-span-2 space-y-6">
           {/* Vendor & Engagement Info */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Engagement Details</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Engagement Details
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Vendor</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Vendor
+                </p>
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-medium text-gray-900">
@@ -403,13 +450,17 @@ export function VendorEngagementDetail() {
                 </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Department</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Department
+                </p>
                 <span className="text-sm font-medium text-gray-900">
                   {vendorEngagement.department}
                 </span>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Engagement ID</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Engagement ID
+                </p>
                 <Link
                   href="/engagements"
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -418,7 +469,9 @@ export function VendorEngagementDetail() {
                 </Link>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Work Order ID</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Work Order ID
+                </p>
                 <Link
                   href={`/rfqs/${vendorEngagement.workOrderId}`}
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -427,7 +480,9 @@ export function VendorEngagementDetail() {
                 </Link>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Start Date</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  Start Date
+                </p>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-medium text-gray-900">
@@ -436,21 +491,31 @@ export function VendorEngagementDetail() {
                 </div>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">End Date</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                  End Date
+                </p>
                 <span className="text-sm text-gray-600">
-                  {vendorEngagement.endDate ? formatDate(vendorEngagement.endDate) : 'Ongoing'}
+                  {vendorEngagement.endDate
+                    ? formatDate(vendorEngagement.endDate)
+                    : 'Ongoing'}
                 </span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Award Decision Reason</p>
-              <p className="text-sm text-gray-700">{vendorEngagement.decisionReason}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+                Award Decision Reason
+              </p>
+              <p className="text-sm text-gray-700">
+                {vendorEngagement.decisionReason}
+              </p>
             </div>
           </div>
 
           {/* Milestones */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Milestones</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Project Milestones
+            </h2>
             <div className="space-y-3">
               {vendorEngagement.milestones.map((milestone) => (
                 <div
@@ -459,7 +524,9 @@ export function VendorEngagementDetail() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-sm font-semibold text-gray-900">{milestone.name}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        {milestone.name}
+                      </h3>
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
                           milestone.status
@@ -499,7 +566,9 @@ export function VendorEngagementDetail() {
                 <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-sm font-semibold text-gray-900">New Milestone</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        New Milestone
+                      </h3>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-600">
                       <div className="flex items-center gap-1">
@@ -507,7 +576,12 @@ export function VendorEngagementDetail() {
                         <input
                           type="date"
                           value={milestoneFormData.dueDate}
-                          onChange={(e) => setMilestoneFormData({ ...milestoneFormData, dueDate: e.target.value })}
+                          onChange={(e) =>
+                            setMilestoneFormData({
+                              ...milestoneFormData,
+                              dueDate: e.target.value,
+                            })
+                          }
                           className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
                       </div>
@@ -516,7 +590,12 @@ export function VendorEngagementDetail() {
                         <input
                           type="number"
                           value={milestoneFormData.amount}
-                          onChange={(e) => setMilestoneFormData({ ...milestoneFormData, amount: e.target.value })}
+                          onChange={(e) =>
+                            setMilestoneFormData({
+                              ...milestoneFormData,
+                              amount: e.target.value,
+                            })
+                          }
                           placeholder="Amount"
                           className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
@@ -525,7 +604,12 @@ export function VendorEngagementDetail() {
                     <input
                       type="text"
                       value={milestoneFormData.name}
-                      onChange={(e) => setMilestoneFormData({ ...milestoneFormData, name: e.target.value })}
+                      onChange={(e) =>
+                        setMilestoneFormData({
+                          ...milestoneFormData,
+                          name: e.target.value,
+                        })
+                      }
                       placeholder="Milestone Name"
                       className="w-full px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
@@ -564,12 +648,14 @@ export function VendorEngagementDetail() {
           {/* Uploaded Invoices Card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Uploaded Invoices</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Uploaded Invoices
+              </h2>
               <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
                 {vendorEngagement.invoices.length}
               </span>
             </div>
-            
+
             <div className="space-y-2">
               {vendorEngagement.invoices.map((invoice) => (
                 <Link
@@ -583,7 +669,9 @@ export function VendorEngagementDetail() {
                       <p className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
                         {invoice.id}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">{invoice.description}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {invoice.description}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -605,7 +693,9 @@ export function VendorEngagementDetail() {
             {vendorEngagement.invoices.length === 0 && (
               <div className="text-center py-6">
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No invoices uploaded yet</p>
+                <p className="text-sm text-gray-500">
+                  No invoices uploaded yet
+                </p>
               </div>
             )}
 
@@ -619,7 +709,9 @@ export function VendorEngagementDetail() {
 
           {/* Payment Summary */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Summary</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Payment Summary
+            </h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Award Amount</span>
@@ -634,19 +726,23 @@ export function VendorEngagementDetail() {
                 </span>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                <span className="text-sm font-semibold text-gray-900">Remaining Balance</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  Remaining Balance
+                </span>
                 <span className="text-lg font-bold text-blue-700">
                   {formatCurrency(vendorEngagement.remainingBalance)}
                 </span>
               </div>
             </div>
-            
+
             {/* Milestone Allocation Warning */}
-            <div className={`mt-4 p-3 rounded-lg border ${
-              allocationMatch
-                ? 'bg-green-50 border-green-200'
-                : 'bg-amber-50 border-amber-200'
-            }`}>
+            <div
+              className={`mt-4 p-3 rounded-lg border ${
+                allocationMatch
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-amber-50 border-amber-200'
+              }`}
+            >
               <div className="flex items-start gap-2">
                 {allocationMatch ? (
                   <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
@@ -654,19 +750,27 @@ export function VendorEngagementDetail() {
                   <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 )}
                 <div className="flex-1 text-xs">
-                  <p className={`font-semibold mb-1 ${
-                    allocationMatch ? 'text-green-900' : 'text-amber-900'
-                  }`}>
+                  <p
+                    className={`font-semibold mb-1 ${
+                      allocationMatch ? 'text-green-900' : 'text-amber-900'
+                    }`}
+                  >
                     Milestone Allocation
                   </p>
                   <p className="text-gray-600">
                     Total: {formatCurrency(totalMilestoneAllocation)}
                   </p>
                   {allocationMatch ? (
-                    <p className="text-green-700 font-medium mt-1">✓ Balanced</p>
+                    <p className="text-green-700 font-medium mt-1">
+                      ✓ Balanced
+                    </p>
                   ) : (
                     <p className="text-amber-700 font-medium mt-1">
-                      ⚠ {totalMilestoneAllocation > vendorEngagement.awardAmount ? 'Over' : 'Under'} allocated
+                      ⚠{' '}
+                      {totalMilestoneAllocation > vendorEngagement.awardAmount
+                        ? 'Over'
+                        : 'Under'}{' '}
+                      allocated
                     </p>
                   )}
                 </div>
@@ -676,7 +780,9 @@ export function VendorEngagementDetail() {
 
           {/* Quick Actions */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Quick Actions
+            </h2>
             <div className="space-y-2">
               <Link
                 href="/invoices"
@@ -705,7 +811,9 @@ export function VendorEngagementDetail() {
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl z-10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">Generate Invoice</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Generate Invoice
+                  </h2>
                   <button
                     onClick={() => setShowInvoiceModal(false)}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -724,7 +832,9 @@ export function VendorEngagementDetail() {
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Vendor Engagement ID</p>
+                      <p className="text-xs text-gray-500 mb-1">
+                        Vendor Engagement ID
+                      </p>
                       <p className="text-sm font-medium text-gray-900">
                         {vendorEngagement.vendorEngagementId}
                       </p>
@@ -742,13 +852,17 @@ export function VendorEngagementDetail() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Total Paid So Far</p>
+                      <p className="text-xs text-gray-500 mb-1">
+                        Total Paid So Far
+                      </p>
                       <p className="text-sm font-medium text-green-700">
                         {formatCurrency(vendorEngagement.totalPaidSoFar)}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-xs text-gray-500 mb-1">Remaining Balance</p>
+                      <p className="text-xs text-gray-500 mb-1">
+                        Remaining Balance
+                      </p>
                       <p className="text-lg font-bold text-blue-700">
                         {formatCurrency(vendorEngagement.remainingBalance)}
                       </p>
@@ -766,9 +880,13 @@ export function VendorEngagementDetail() {
                     <select
                       value={invoiceType}
                       onChange={(e) => {
-                        setInvoiceType(e.target.value as 'Full Payment' | 'Partial Payment');
+                        setInvoiceType(
+                          e.target.value as 'Full Payment' | 'Partial Payment'
+                        );
                         if (e.target.value === 'Full Payment') {
-                          setInvoiceAmount(vendorEngagement.remainingBalance.toString());
+                          setInvoiceAmount(
+                            vendorEngagement.remainingBalance.toString()
+                          );
                         } else {
                           setInvoiceAmount('');
                         }
@@ -799,14 +917,16 @@ export function VendorEngagementDetail() {
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Maximum: {formatCurrency(vendorEngagement.remainingBalance)}
+                      Maximum:{' '}
+                      {formatCurrency(vendorEngagement.remainingBalance)}
                     </p>
                   </div>
 
                   {/* Description */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description / Notes <span className="text-red-500">*</span>
+                      Description / Notes{' '}
+                      <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       value={invoiceDescription}
@@ -854,7 +974,9 @@ export function VendorEngagementDetail() {
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                              <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                              <span className="text-sm text-gray-700 truncate">
+                                {file.name}
+                              </span>
                               <span className="text-xs text-gray-500">
                                 ({formatFileSize(file.size)})
                               </span>

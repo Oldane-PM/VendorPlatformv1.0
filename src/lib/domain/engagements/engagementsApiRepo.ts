@@ -177,3 +177,27 @@ export async function listVendorEngagements(): Promise<{
     return { data: null, error: error.message };
   }
 }
+
+/**
+ * Fetch a single vendor engagement by VE number (e.g. "VE-0001").
+ */
+export async function getVendorEngagement(
+  veId: string
+): Promise<{ data: VendorEngagementDto | null; error: string | null }> {
+  try {
+    const res = await fetch(
+      `/api/vendor-engagements/${encodeURIComponent(veId)}`
+    );
+    if (!res.ok) {
+      const err = await res.json();
+      return {
+        data: null,
+        error: err.error || 'Failed to fetch vendor engagement',
+      };
+    }
+    const json = await res.json();
+    return json;
+  } catch (error: any) {
+    return { data: null, error: error.message };
+  }
+}

@@ -440,9 +440,8 @@ export function EngagementList() {
                       <tr
                         key={engagement.vendorEngagementId}
                         onClick={() =>
-                          engagement.engagementUuid &&
                           router.push(
-                            `/engagements/${engagement.engagementUuid}`
+                            `/vendor-engagements/${engagement.vendorEngagementId}`
                           )
                         }
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
