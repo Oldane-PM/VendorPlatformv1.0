@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createUploadLink } from '../../../../lib/supabase/repos/workOrderQuotePortalRepo';
+import { getRequestContext } from '../../../../lib/auth/getRequestContext';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -10,20 +11,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+  let ctx;
+  try {
+    ctx = await getRequestContext(req);
+  } catch (err: any) {
+    return res.status(401).json({ error: err.message || 'Unauthorized' });
+  }
+
   const { workOrderId } = req.query;
 
   if (!workOrderId || typeof workOrderId !== 'string') {
     return res.status(400).json({ error: 'Missing work order ID' });
   }
 
-  // We are not enforcing auth via session right here assuming internal route for simplicity right now
-  const orgId = '00000000-0000-0000-0000-000000000001';
-  const userId = '00000000-0000-0000-0000-000000000000';
-
   const { expiresInHours, allowedDocTypes, maxFiles, maxTotalBytes } = req.body;
 
   try {
-    const result = await createUploadLink(orgId, userId, workOrderId, {
+    const result = await createUploadLink(ctx.orgId, ctx.userId, workOrderId, {
       expiresInHours: expiresInHours ?? 72,
       allowedDocTypes: allowedDocTypes ?? ['quote', 'supporting'],
       maxFiles: maxFiles ?? 10,

@@ -167,7 +167,20 @@ export async function createInvoiceUploadLink(
     .single();
 
   if (error || !data) {
-    console.error('[createInvoiceUploadLink] Insert error:', error?.message);
+    console.error(
+      '[createInvoiceUploadLink] Insert error:',
+      error?.message,
+      'code:',
+      error?.code,
+      'details:',
+      error?.details,
+      'hint:',
+      error?.hint
+    );
+    console.error(
+      '[createInvoiceUploadLink] Row attempted:',
+      JSON.stringify(row)
+    );
     throw new Error('Failed to create upload request.');
   }
 

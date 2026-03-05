@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createInvoiceUploadLink } from '../../../../lib/supabase/repos/engagementInvoicePortalRepo';
+import { getRequestContext } from '../../../../lib/auth/getRequestContext';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -10,6 +11,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+  let ctx;
+  try {
+    ctx = await getRequestContext(req);
+  } catch (err: any) {
+    return res.status(401).json({ error: err.message || 'Unauthorized' });
+  }
+
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
@@ -24,16 +32,18 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       .json({ error: 'Missing vendorId for Invoice portal.' });
   }
 
-  // We are not enforcing explicit auth verification here, relying on the internal architecture logic matching
-  const orgId = '00000000-0000-0000-0000-000000000001';
-  const userId = '00000000-0000-0000-0000-000000000000';
-
   try {
-    const result = await createInvoiceUploadLink(orgId, userId, id, vendorId, {
-      expiresInHours: expiresInHours ?? 72,
-      maxFiles: maxFiles ?? 10,
-      maxTotalBytes: maxTotalBytes ?? 50 * 1024 * 1024,
-    });
+    const result = await createInvoiceUploadLink(
+      ctx.orgId,
+      ctx.userId,
+      id,
+      vendorId,
+      {
+        expiresInHours: expiresInHours ?? 72,
+        maxFiles: maxFiles ?? 10,
+        maxTotalBytes: maxTotalBytes ?? 50 * 1024 * 1024,
+      }
+    );
     return res.status(200).json(result);
   } catch (error: any) {
     console.error('[invoice-upload-link] Error generating link:', error);

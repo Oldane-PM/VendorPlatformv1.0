@@ -174,8 +174,18 @@ export async function createUploadLink(
     .single();
 
   if (error || !data) {
-    console.error('[createUploadLink] Insert error:', error?.message);
-    throw new Error('Failed to create upload request.');
+    console.error(
+      '[createUploadLink] Insert error:',
+      error?.message,
+      'code:',
+      error?.code,
+      'details:',
+      error?.details,
+      'hint:',
+      error?.hint
+    );
+    console.error('[createUploadLink] Row attempted:', JSON.stringify(row));
+    throw new Error(error?.message || 'Failed to create upload request.');
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
