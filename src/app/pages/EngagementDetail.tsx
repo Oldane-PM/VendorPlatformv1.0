@@ -2,20 +2,28 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  ArrowLeft,
-  Edit,
-  Trash2,
-  FileText,
-  CheckSquare,
-  DollarSign,
-  Activity,
-  Upload,
-  AlertTriangle,
-  Check,
   X,
+  Plus,
+  ArrowLeft,
+  Calendar,
+  DollarSign,
+  AlertCircle,
+  AlertTriangle,
+  Upload,
   Clock,
+  FileText,
+  User,
+  Shield,
+  Activity,
+  CheckCircle2,
+  Paperclip,
+  Check,
+  Building2,
+  Edit, // Retained from original, as it's used
+  Trash2, // Retained from original, as it's used
+  CheckSquare, // Retained from original, as it's used
+  Loader2, // Retained from original, as it's used
   Sparkles,
-  Loader2,
 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { useEngagementDetail } from '@/lib/hooks/useEngagements';
@@ -78,10 +86,7 @@ export function EngagementDetail() {
   }
 
   const handleDelete = () => {
-    if (
-      window.confirm(`Are you sure you want to delete "${engagement.title}"?`)
-    ) {
-      // TODO: wire to API delete
+    if (window.confirm('Are you sure you want to delete this engagement?')) {
       router.push('/engagements');
     }
   };
@@ -89,7 +94,7 @@ export function EngagementDetail() {
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: FileText },
     { id: 'workOrders' as TabType, label: 'Work Orders', icon: FileText },
-    { id: 'documents' as TabType, label: 'Documents', icon: Upload },
+    { id: 'documents' as TabType, label: 'Documents', icon: FileText },
     { id: 'approvals' as TabType, label: 'Approvals', icon: CheckSquare },
     { id: 'financials' as TabType, label: 'Financials', icon: DollarSign },
     { id: 'activity' as TabType, label: 'Activity Log', icon: Activity },
@@ -134,7 +139,9 @@ export function EngagementDetail() {
                   ENG-{String(engagement.engagement_number).padStart(4, '0')}
                 </p>
               </div>
-              <StatusBadge status={engagement.status as any} />
+              <div className="flex items-center gap-3">
+                <StatusBadge status={engagement.status as any} />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -3,7 +3,7 @@ import { workOrderVendorUploadLinkApiRepo } from '../domain/uploads/workOrderVen
 import {
   CreateUploadLinkPayload,
   CreateUploadLinkResult,
-} from '../supabase/repos/workOrderVendorPortalRepo';
+} from '../supabase/repos/workOrderQuotePortalRepo';
 
 export function useWorkOrderVendorUploadLink() {
   const [loading, setLoading] = useState(false);

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { resolveVendorForSubmission } from '@/lib/supabase/repos/workOrderVendorPortalRepo';
+import { resolveVendorForSubmission } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
 import { getRequestContext } from '@/lib/auth/getRequestContext';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

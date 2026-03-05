@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createUploadLink } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
-import { getRequestContext } from '@/lib/auth/getRequestContext';
+import { createUploadLink } from '../../../../lib/supabase/repos/workOrderQuotePortalRepo';
+import { getRequestContext } from '../../../../lib/auth/getRequestContext';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -19,30 +19,25 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { workOrderId } = req.query;
+
   if (!workOrderId || typeof workOrderId !== 'string') {
     return res.status(400).json({ error: 'Missing work order ID' });
   }
 
-  try {
-    const { allowedDocTypes, expiresInHours, maxFiles, maxTotalBytes } =
-      req.body;
-    const result = await createUploadLink(
-      ctx.orgId,
-      ctx.userId,
-      workOrderId as string,
-      {
-        allowedDocTypes,
-        expiresInHours,
-        maxFiles,
-        maxTotalBytes,
-      }
-    );
+  const { expiresInHours, allowedDocTypes, maxFiles, maxTotalBytes } = req.body;
 
+  try {
+    const result = await createUploadLink(ctx.orgId, ctx.userId, workOrderId, {
+      expiresInHours: expiresInHours ?? 72,
+      allowedDocTypes: allowedDocTypes ?? ['quote', 'supporting'],
+      maxFiles: maxFiles ?? 10,
+      maxTotalBytes: maxTotalBytes ?? 50 * 1024 * 1024,
+    });
     return res.status(200).json(result);
   } catch (error: any) {
-    console.error('[vendor-upload-link] Error:', error);
+    console.error('[quote-upload-link] Error generating link:', error);
     return res
       .status(500)
-      .json({ error: error.message || 'Internal Server Error' });
+      .json({ error: error.message || 'Failed to generate link' });
   }
 }

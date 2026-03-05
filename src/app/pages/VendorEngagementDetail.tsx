@@ -32,7 +32,7 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
-import { UploadVendorInvoiceModal } from '../components/UploadVendorInvoiceModal';
+import { useEngagementInvoiceUploadLink } from '@/lib/hooks/useEngagementInvoiceUploadLink';
 import { useVendorEngagementDetail } from '@/lib/hooks/useVendorEngagementDetail';
 
 interface Milestone {
@@ -61,8 +61,17 @@ interface Invoice {
 export function VendorEngagementDetail() {
   const router = useRouter();
   const id = router.query.engagementId as string | undefined;
+
+  const { detail, isLoading, error } = useVendorEngagementDetail(id);
+
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [showUploadInvoiceModal, setShowUploadInvoiceModal] = useState(false);
+  const [showRequestInvoiceModal, setShowRequestInvoiceModal] = useState(false);
+  const [reqInvoiceExpiry, setReqInvoiceExpiry] = useState<number>(72);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { createLink, isLoading: isCreatingLink } =
+    useEngagementInvoiceUploadLink();
   const [invoiceType, setInvoiceType] = useState<
     'Full Payment' | 'Partial Payment'
   >('Partial Payment');
@@ -77,8 +86,6 @@ export function VendorEngagementDetail() {
     status: 'Pending' as Milestone['status'],
   });
   const [showAddMilestone, setShowAddMilestone] = useState(false);
-
-  const { detail, isLoading, error } = useVendorEngagementDetail(id);
 
   // Map live data to the component's expected shape
   const vendorEngagement = detail
@@ -102,6 +109,7 @@ export function VendorEngagementDetail() {
           department: detail.department ?? 'Unassigned',
           awardedBy: detail.awarded_by ?? 'System',
           decisionReason: detail.decision_reason ?? '',
+          submissions: detail.submissions || [],
           milestones: detail.milestones.map((m) => ({
             id: m.id,
             name: m.activity,
@@ -121,9 +129,12 @@ export function VendorEngagementDetail() {
       })()
     : null;
 
-  // Calculate milestone allocation
+  // Calculate milestone allocation (fallback to 0 if milestones don't exist yet)
   const totalMilestoneAllocation =
-    vendorEngagement?.milestones.reduce((sum, m) => sum + m.amount, 0) ?? 0;
+    vendorEngagement?.milestones?.reduce(
+      (sum: number, m: any) => sum + m.amount,
+      0
+    ) ?? 0;
   const allocationMatch =
     totalMilestoneAllocation === (vendorEngagement?.awardAmount ?? 0);
 
@@ -133,7 +144,7 @@ export function VendorEngagementDetail() {
     : 0;
 
   // Handle edit milestone
-  const handleEditMilestone = (milestone: Milestone) => {
+  const handleEditMilestone = (milestone: any) => {
     setEditingMilestone(milestone.id);
     setMilestoneFormData({
       name: milestone.name,
@@ -370,7 +381,10 @@ export function VendorEngagementDetail() {
             </h2>
           </div>
           <button
-            onClick={() => setShowUploadInvoiceModal(true)}
+            onClick={() => {
+              setGeneratedLink(null);
+              setShowRequestInvoiceModal(true);
+            }}
             disabled={
               vendorEngagement.status === 'Terminated' ||
               vendorEngagement.remainingBalance === 0
@@ -378,7 +392,7 @@ export function VendorEngagementDetail() {
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-5 h-5" />
-            Upload Vendor Invoice
+            Request Vendor Invoice
           </button>
         </div>
 
@@ -517,7 +531,7 @@ export function VendorEngagementDetail() {
               Project Milestones
             </h2>
             <div className="space-y-3">
-              {vendorEngagement.milestones.map((milestone) => (
+              {vendorEngagement.milestones?.map((milestone: any) => (
                 <div
                   key={milestone.id}
                   className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
@@ -652,45 +666,87 @@ export function VendorEngagementDetail() {
                 Uploaded Invoices
               </h2>
               <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                {vendorEngagement.invoices.length}
+                {vendorEngagement.invoices?.length || 0}
               </span>
             </div>
 
-            <div className="space-y-2">
-              {vendorEngagement.invoices.map((invoice) => (
-                <Link
+            <div className="space-y-3">
+              {vendorEngagement.invoices?.map((invoice: any) => (
+                <div
                   key={invoice.id}
-                  href={`/invoices/${invoice.id}`}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all group"
+                  className="p-4 bg-gray-50 rounded-lg border border-gray-200"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <FileText className="w-4 h-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                        {invoice.id}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {invoice.description}
-                      </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Receipt className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {invoice.invoice_number || invoice.id}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {invoice.submitted_date
+                            ? new Date(
+                                invoice.submitted_date
+                              ).toLocaleDateString()
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(invoice.amount)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${getInvoiceStatusBadgeClass(
+                          invoice.status
+                        )}`}
+                      >
+                        {invoice.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(invoice.amount)}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${getInvoiceStatusBadgeClass(
-                        invoice.status
-                      )}`}
-                    >
-                      {invoice.status}
-                    </span>
-                  </div>
-                </Link>
+
+                  {/* Invoice Files */}
+                  {invoice.files && invoice.files.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                      {invoice.files.map((file: any) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-white transition-colors"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Paperclip className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span className="text-xs text-gray-700 truncate">
+                              {file.file_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <a
+                              href={`/api/documents/download?path=${encodeURIComponent(file.storage_path)}&bucket=vendor_invoices`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                              title="View / Download"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(!invoice.files || invoice.files.length === 0) && (
+                    <p className="text-xs text-gray-400 mt-1 italic">
+                      No files attached
+                    </p>
+                  )}
+                </div>
               ))}
             </div>
 
-            {vendorEngagement.invoices.length === 0 && (
+            {(!vendorEngagement.invoices ||
+              vendorEngagement.invoices.length === 0) && (
               <div className="text-center py-6">
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">
@@ -796,267 +852,145 @@ export function VendorEngagementDetail() {
         </div>
       </div>
 
-      {/* Invoice Generation Modal */}
-      {showInvoiceModal && (
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 animate-fade-in-up">
+          <div className="bg-gray-900 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <p className="text-sm font-medium">{toastMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Request Invoices Modal */}
+      {showRequestInvoiceModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          {/* Overlay */}
           <div
             className="fixed inset-0 bg-gray-900/35 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowInvoiceModal(false)}
+            onClick={() => !isCreatingLink && setShowRequestInvoiceModal(false)}
           />
-
-          {/* Modal */}
           <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl z-10">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Generate Invoice
-                  </h2>
-                  <button
-                    onClick={() => setShowInvoiceModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full">
+              <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Request Vendor Invoice
+                </h2>
+                <button
+                  onClick={() => setShowRequestInvoiceModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Body */}
               <div className="px-6 py-6 space-y-6">
-                {/* Pre-populated Fields */}
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                    Pre-Populated Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">
-                        Vendor Engagement ID
-                      </p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {vendorEngagement.vendorEngagementId}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Vendor Name</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {vendorEngagement.vendorName}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Award Amount</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(vendorEngagement.awardAmount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">
-                        Total Paid So Far
-                      </p>
-                      <p className="text-sm font-medium text-green-700">
-                        {formatCurrency(vendorEngagement.totalPaidSoFar)}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-xs text-gray-500 mb-1">
-                        Remaining Balance
-                      </p>
-                      <p className="text-lg font-bold text-blue-700">
-                        {formatCurrency(vendorEngagement.remainingBalance)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Editable Fields */}
-                <div className="space-y-4">
-                  {/* Invoice Type */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Invoice Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={invoiceType}
-                      onChange={(e) => {
-                        setInvoiceType(
-                          e.target.value as 'Full Payment' | 'Partial Payment'
-                        );
-                        if (e.target.value === 'Full Payment') {
-                          setInvoiceAmount(
-                            vendorEngagement.remainingBalance.toString()
-                          );
-                        } else {
-                          setInvoiceAmount('');
-                        }
-                      }}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="Partial Payment">Partial Payment</option>
-                      <option value="Full Payment">Full Payment</option>
-                    </select>
-                  </div>
-
-                  {/* Invoice Amount */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Invoice Amount <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        $
-                      </span>
-                      <input
-                        type="number"
-                        value={invoiceAmount}
-                        onChange={(e) => setInvoiceAmount(e.target.value)}
-                        disabled={invoiceType === 'Full Payment'}
-                        placeholder="Enter amount"
-                        className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Maximum:{' '}
-                      {formatCurrency(vendorEngagement.remainingBalance)}
+                {!generatedLink ? (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      Generate a secure, token-gated link for the vendor to
+                      upload their invoice directly against this engagement.
                     </p>
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description / Notes{' '}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={invoiceDescription}
-                      onChange={(e) => setInvoiceDescription(e.target.value)}
-                      placeholder="Describe the work completed or milestone achieved..."
-                      rows={4}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                    />
-                  </div>
-
-                  {/* File Upload */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Supporting Documents (Optional)
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                      <input
-                        type="file"
-                        id="invoice-file-upload"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="invoice-file-upload"
-                        className="flex flex-col items-center cursor-pointer"
-                      >
-                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-600">
-                          Click to upload or drag and drop
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          PDF, Excel, Images (max 10MB each)
-                        </p>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Link Expiry
                       </label>
+                      <select
+                        value={reqInvoiceExpiry}
+                        onChange={(e) =>
+                          setReqInvoiceExpiry(Number(e.target.value))
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value={24}>24 Hours</option>
+                        <option value={72}>3 Days</option>
+                        <option value={168}>7 Days</option>
+                        <option value={336}>14 Days</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-green-900">
+                          Upload Link Generated
+                        </p>
+                        <p className="text-xs text-green-700 mt-1">
+                          Share this secure link with the vendor. Do not share
+                          it publicly.
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Uploaded Files List */}
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {uploadedFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-                          >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                              <span className="text-sm text-gray-700 truncate">
-                                {file.name}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({formatFileSize(file.size)})
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => removeFile(index)}
-                              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Validation Warning */}
-                {vendorEngagement.status === 'Terminated' && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-red-900">
-                          Cannot Generate Invoice
-                        </p>
-                        <p className="text-xs text-red-700 mt-1">
-                          This vendor engagement has been terminated.
-                        </p>
-                      </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatedLink}
+                        className="flex-1 px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono text-gray-600 select-all focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                      />
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(generatedLink);
+                          setToastMessage('Link copied to clipboard!');
+                          setTimeout(() => setToastMessage(null), 3000);
+                        }}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      >
+                        Copy
+                      </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Footer */}
-              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 rounded-b-xl">
-                <div className="flex items-center justify-end gap-3">
+              <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                <button
+                  onClick={() => setShowRequestInvoiceModal(false)}
+                  className="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                  {generatedLink ? 'Close' : 'Cancel'}
+                </button>
+                {!generatedLink && (
                   <button
-                    onClick={() => setShowInvoiceModal(false)}
-                    className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    onClick={async () => {
+                      if (!detail?.engagement_uuid || !detail?.vendor_id) {
+                        setToastMessage('Missing engagement or vendor data.');
+                        return;
+                      }
+                      const result = await createLink(
+                        detail.engagement_uuid,
+                        detail.vendor_id,
+                        {
+                          expiresInHours: reqInvoiceExpiry,
+                        }
+                      );
+                      if (result?.data?.portalUrl) {
+                        setGeneratedLink(result.data.portalUrl);
+                        setToastMessage('Link generated successfully!');
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }
+                    }}
+                    disabled={isCreatingLink}
+                    className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50"
                   >
-                    Cancel
+                    {isCreatingLink ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Link'
+                    )}
                   </button>
-                  <button
-                    onClick={handleGenerateInvoice}
-                    disabled={vendorEngagement.status === 'Terminated'}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Receipt className="w-4 h-4" />
-                    Generate Invoice
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Upload Vendor Invoice Modal (AI Extraction) */}
-      <UploadVendorInvoiceModal
-        isOpen={showUploadInvoiceModal}
-        onClose={() => setShowUploadInvoiceModal(false)}
-        engagementContext={{
-          engagementId: vendorEngagement.vendorEngagementId,
-          vendorName: vendorEngagement.vendorName,
-          awardAmount: vendorEngagement.awardAmount,
-          totalPaid: vendorEngagement.totalPaidSoFar,
-          remainingBalance: vendorEngagement.remainingBalance,
-          currency: 'USD',
-        }}
-        onSave={(data) => {
-          console.log('Invoice saved:', data);
-          alert('✅ Invoice uploaded and saved successfully!');
-          setShowUploadInvoiceModal(false);
-          setTimeout(() => {
-            router.push('/invoices');
-          }, 500);
-        }}
-      />
     </div>
   );
 }

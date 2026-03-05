@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createSubmission } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
+import { finalizeInvoiceFile } from '@/lib/supabase/repos/engagementInvoicePortalRepo';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -20,13 +20,26 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ error: 'Missing token' });
   }
 
+  const { submissionId, uploadFileId, meta } = req.body;
+
+  if (!submissionId || !uploadFileId) {
+    return res
+      .status(400)
+      .json({ error: 'Missing submission_id or upload_file_id' });
+  }
+
   try {
-    const payload = req.body;
-    const result = await createSubmission(requestId, t, payload);
+    const result = await finalizeInvoiceFile(
+      requestId,
+      t,
+      submissionId,
+      uploadFileId,
+      meta || {}
+    );
     return res.status(200).json(result);
   } catch (error: any) {
-    console.error('[portal-submission] Error:', error);
-    const msg = error.message || 'Failed to create submission';
+    console.error('[invoice-portal-finalize] Error:', error);
+    const msg = error.message || 'Failed to finalize file';
     return res.status(400).json({ error: msg });
   }
 }

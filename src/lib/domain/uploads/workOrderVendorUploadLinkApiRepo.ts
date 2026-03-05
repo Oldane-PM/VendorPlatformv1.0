@@ -1,7 +1,7 @@
 import {
   CreateUploadLinkPayload,
   CreateUploadLinkResult,
-} from '../../supabase/repos/workOrderVendorPortalRepo';
+} from '../../supabase/repos/workOrderQuotePortalRepo';
 
 export const workOrderVendorUploadLinkApiRepo = {
   async createLink(

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createSubmission } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
+import { createSignedInvoiceUploadUrl } from '@/lib/supabase/repos/engagementInvoicePortalRepo';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -20,13 +20,25 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ error: 'Missing token' });
   }
 
+  const { submissionId, fileMeta } = req.body;
+
+  if (!submissionId || !fileMeta) {
+    return res
+      .status(400)
+      .json({ error: 'Missing submission_id or file_meta' });
+  }
+
   try {
-    const payload = req.body;
-    const result = await createSubmission(requestId, t, payload);
+    const result = await createSignedInvoiceUploadUrl(
+      requestId,
+      t,
+      submissionId,
+      fileMeta
+    );
     return res.status(200).json(result);
   } catch (error: any) {
-    console.error('[portal-submission] Error:', error);
-    const msg = error.message || 'Failed to create submission';
+    console.error('[invoice-portal-upload-url] Error:', error);
+    const msg = error.message || 'Failed to generate upload URL';
     return res.status(400).json({ error: msg });
   }
 }
