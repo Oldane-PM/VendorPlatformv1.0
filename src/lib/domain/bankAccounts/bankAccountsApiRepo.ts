@@ -92,6 +92,17 @@ export interface CreateTransactionPayload {
   notes?: string;
 }
 
+export interface UpdateTransactionPayload {
+  vendor?: string;
+  fee_amount?: number;
+  exchange_rate?: number;
+  reconciled?: boolean;
+  funding_source?: string;
+  fee_type?: string;
+  reference_number?: string;
+  notes?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -182,6 +193,21 @@ export async function createTransaction(
     `/api/bank-accounts/${accountId}/transactions`,
     {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+  return data.transaction;
+}
+
+export async function updateTransaction(
+  accountId: string,
+  transactionId: string,
+  payload: UpdateTransactionPayload
+): Promise<BankTransactionDto> {
+  const data = await apiFetch<{ transaction: BankTransactionDto }>(
+    `/api/bank-accounts/${accountId}/transactions/${transactionId}`,
+    {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     }
   );
