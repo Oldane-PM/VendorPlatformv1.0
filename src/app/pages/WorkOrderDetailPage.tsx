@@ -659,7 +659,7 @@ export function WorkOrderDetailPage() {
                     ))}
                   </TableRow>
                   {/* Total Amount */}
-                  <TableRow className="bg-gray-50/50">
+                  <TableRow>
                     <TableCell className="font-semibold text-gray-900">
                       Total Amount
                     </TableCell>
@@ -771,6 +771,27 @@ export function WorkOrderDetailPage() {
                         className="text-gray-600 text-sm leading-relaxed align-top"
                       >
                         {sub.ai_summary || '—'}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {/* Attachments */}
+                  <TableRow className="bg-gray-50/50">
+                    <TableCell className="font-medium text-gray-900">
+                      Attachments
+                    </TableCell>
+                    {submissions.map((sub) => (
+                      <TableCell key={sub.id} className="text-gray-700">
+                        <button
+                          onClick={() => handleViewSubmission(sub.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-200 transition-colors ${
+                            sub.file_count > 0
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          <Paperclip className="w-3.5 h-3.5" />
+                          <span>{sub.file_count}</span>
+                        </button>
                       </TableCell>
                     ))}
                   </TableRow>
