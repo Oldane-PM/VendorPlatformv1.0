@@ -110,6 +110,9 @@ export default async function handler(
         }
       );
 
+      // Sync the final score to the vendors table
+      await vendorsRepo.updateVendor(id, { rating: evaluation.final_score });
+
       return res.status(200).json({ evaluation });
     }
 

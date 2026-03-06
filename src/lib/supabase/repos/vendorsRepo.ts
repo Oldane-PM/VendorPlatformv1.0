@@ -59,6 +59,7 @@ export interface UpdateVendorInput {
   address?: string;
   contact_person?: string;
   category?: string;
+  rating?: number;
   notes?: string;
 }
 
