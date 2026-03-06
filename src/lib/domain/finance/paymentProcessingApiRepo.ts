@@ -8,6 +8,10 @@ export interface PaymentQueueItemDto {
   due_date: string | null;
   submitted_date: string | null;
   created_at: string;
+  engagements?: {
+    title: string;
+    work_orders?: { title: string }[];
+  } | null;
 }
 
 export interface PaymentProcessingDetailDto extends PaymentQueueItemDto {
