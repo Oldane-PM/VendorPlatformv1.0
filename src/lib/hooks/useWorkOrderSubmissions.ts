@@ -17,6 +17,7 @@ interface VendorSubmission {
   compliance_status: string | null;
   performance_rating: number | null;
   ai_summary: string | null;
+  file_count: number;
 }
 
 export function useWorkOrderSubmissions(workOrderId: string | undefined) {

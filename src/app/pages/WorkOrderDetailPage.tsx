@@ -34,6 +34,7 @@ import { useWorkOrderSubmissions } from '@/lib/hooks/useWorkOrderSubmissions';
 import { useVendorSubmissionDetail } from '@/lib/hooks/useVendorSubmissionDetail';
 import { useAwardSubmission } from '@/lib/hooks/useAwardSubmission';
 import { useWorkOrderQuoteUploadLink } from '@/lib/hooks/useWorkOrderQuoteUploadLink';
+import { useVendors } from '@/lib/hooks/useVendors';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,7 @@ export function WorkOrderDetailPage() {
     'supporting',
   ]);
   const [reqDocExpiry, setReqDocExpiry] = useState(72);
+  const [reqVendorId, setReqVendorId] = useState('');
 
   // New link generation state
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
@@ -228,8 +230,8 @@ export function WorkOrderDetailPage() {
     error: awardError,
   } = useAwardSubmission();
 
-  // Upload requests hook
   const { createLink, isLoading: linkLoading } = useWorkOrderQuoteUploadLink();
+  const { vendors, loading: vendorsLoading } = useVendors();
 
   // ── Fetch work order ──────────────────────────────────────────────────
   const fetchWorkOrder = useCallback(async () => {
@@ -599,10 +601,14 @@ export function WorkOrderDetailPage() {
                       <TableCell className="text-right">
                         <button
                           onClick={() => handleViewSubmission(sub.id)}
-                          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-200 transition-colors ${
+                            sub.file_count > 0
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
                         >
-                          <Paperclip className="w-4 h-4" />
-                          <span className="font-medium">&mdash;</span>
+                          <Paperclip className="w-3.5 h-3.5" />
+                          <span>{sub.file_count}</span>
                         </button>
                       </TableCell>
                     </TableRow>
@@ -963,9 +969,29 @@ export function WorkOrderDetailPage() {
                   <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg flex gap-2">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p>
-                      Generate a secure, time-bound link. You can send this link
-                      to any vendor (existing or new) via your own email/chat.
+                      Generate a secure, time-bound link tied directly to a
+                      specific vendor.
                     </p>
+                  </div>
+
+                  {/* Vendor Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Target Vendor <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={reqVendorId}
+                      onChange={(e) => setReqVendorId(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      disabled={vendorsLoading}
+                    >
+                      <option value="">Select a vendor...</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vendor_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Document Types */}
@@ -1078,10 +1104,11 @@ export function WorkOrderDetailPage() {
 
               {!generatedLink && (
                 <button
-                  disabled={linkLoading || !workOrder}
+                  disabled={linkLoading || !workOrder || !reqVendorId}
                   onClick={async () => {
-                    if (!workOrder) return;
+                    if (!workOrder || !reqVendorId) return;
                     const result = await createLink(workOrder.id, {
+                      vendorId: reqVendorId,
                       allowedDocTypes: reqDocTypes,
                       expiresInHours: reqDocExpiry,
                     });
@@ -1188,31 +1215,17 @@ export function WorkOrderDetailPage() {
                         </div>
                         {/* Actions */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {file.signedUrl ? (
-                            <>
-                              <a
-                                href={file.signedUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
-                                title="View"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </a>
-                              <a
-                                href={file.signedUrl}
-                                download={file.file_name}
-                                className="p-2 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
-                                title="Download"
-                              >
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </>
-                          ) : (
-                            <span className="text-xs text-gray-400 px-2">
-                              Unavailable
-                            </span>
-                          )}
+                          <>
+                            <a
+                              href={`/api/documents/download?path=${encodeURIComponent(file.storage_path)}&bucket=vendor_uploads`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
+                              title="View/Download"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </>
                         </div>
                       </div>
                     );

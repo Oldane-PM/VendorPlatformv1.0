@@ -24,10 +24,16 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Missing work order ID' });
   }
 
-  const { expiresInHours, allowedDocTypes, maxFiles, maxTotalBytes } = req.body;
+  const { vendorId, expiresInHours, allowedDocTypes, maxFiles, maxTotalBytes } =
+    req.body;
+
+  if (!vendorId) {
+    return res.status(400).json({ error: 'Vendor ID is required' });
+  }
 
   try {
     const result = await createUploadLink(ctx.orgId, ctx.userId, workOrderId, {
+      vendorId,
       expiresInHours: expiresInHours ?? 72,
       allowedDocTypes: allowedDocTypes ?? ['quote', 'supporting'],
       maxFiles: maxFiles ?? 10,
