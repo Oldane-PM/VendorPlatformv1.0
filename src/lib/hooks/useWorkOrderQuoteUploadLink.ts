@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 interface QuoteUploadLinkConfig {
+  vendorId: string;
   allowedDocTypes?: string[];
   expiresInHours?: number;
   maxFiles?: number;
@@ -19,7 +20,7 @@ export function useWorkOrderQuoteUploadLink() {
   const [error, setError] = useState<string | null>(null);
 
   const createLink = useCallback(
-    async (workOrderId: string, config: QuoteUploadLinkConfig = {}) => {
+    async (workOrderId: string, config: QuoteUploadLinkConfig) => {
       setIsLoading(true);
       setError(null);
 

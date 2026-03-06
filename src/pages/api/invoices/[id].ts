@@ -15,7 +15,7 @@ function getBucketForFile(storagePath: string): string {
   if (storagePath.startsWith('org/')) {
     return 'vendor_uploads'; // Work Order upload path pattern
   }
-  return 'vendor-invoices';
+  return 'vendor_invoices';
 }
 
 export default async function handler(
