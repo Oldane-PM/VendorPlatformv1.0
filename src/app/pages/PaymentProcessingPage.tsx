@@ -371,7 +371,10 @@ export function PaymentProcessingPage() {
                   Vendor
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Project / Work Order
+                  Engagement
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Work Order
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Invoice Amount
@@ -409,16 +412,14 @@ export function PaymentProcessingPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-900 line-clamp-1">
-                        {invoice.engagementTitle}
-                      </span>
-                      {invoice.workorderTitle !== '—' && (
-                        <span className="text-xs text-gray-500 line-clamp-1">
-                          ↳ {invoice.workorderTitle}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-semibold text-gray-900 line-clamp-1">
+                      {invoice.engagementTitle}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-500 line-clamp-1">
+                      {invoice.workorderTitle}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-semibold text-gray-900">
