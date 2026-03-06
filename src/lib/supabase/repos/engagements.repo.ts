@@ -172,7 +172,7 @@ export async function listEngagements(): Promise<{
   const { data, error } = await supabase()
     .from('engagements')
     .select('*')
-    .order('engagement_number', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (error) {
     return {
@@ -367,7 +367,7 @@ export async function listVendorEngagements(): Promise<{
   const { data: veRows, error: veError } = await sb
     .from('vendor_engagements')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (veError) {
     console.error('[engagements.repo] listVendorEngagements error:', veError);
