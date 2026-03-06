@@ -27,7 +27,7 @@ export async function getWorkOrders(): Promise<{
   const { data, error } = await client
     .from('work_orders')
     .select('*')
-    .order('work_order_number', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (error) {
     return {
