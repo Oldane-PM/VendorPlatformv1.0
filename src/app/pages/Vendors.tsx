@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Search, Filter, Star, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { AddVendorPanel } from '../components/AddVendorPanel';
+import { PerformanceRating } from '../components/PerformanceRating';
 import { useVendors } from '@/lib/hooks/useVendors';
 
 export function Vendors() {
@@ -252,7 +253,7 @@ export function Vendors() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tax ID
+                    Rating
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
@@ -305,9 +306,19 @@ export function Vendors() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">
-                          {vendor.tax_id ?? '—'}
-                        </span>
+                        <PerformanceRating
+                          vendorId={vendor.id}
+                          vendorName={vendor.vendor_name}
+                          rating={vendor.rating ? vendor.rating / 2 : 0}
+                          status={
+                            vendor.rating > 0
+                              ? 'Rated'
+                              : vendor.total_engagements === 0
+                                ? 'NewVendor'
+                                : 'NotRated'
+                          }
+                          showProfileLink={false}
+                        />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-500">
