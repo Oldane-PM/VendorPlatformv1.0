@@ -263,7 +263,7 @@ export function WorkOrdersPage() {
                       Engagement ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Engagement Title
+                      Work Order Title
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Submissions
@@ -296,7 +296,6 @@ export function WorkOrdersPage() {
                       const engCode = eng
                         ? `ENG-${String(eng.engagement_number).padStart(4, '0')}`
                         : '—';
-                      const engTitle = eng ? eng.title : '—';
 
                       return (
                         <tr
@@ -316,7 +315,7 @@ export function WorkOrdersPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-900">
-                              {engTitle}
+                              {wo.title}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
