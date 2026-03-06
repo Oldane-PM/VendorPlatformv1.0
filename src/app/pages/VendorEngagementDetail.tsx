@@ -55,7 +55,9 @@ interface Invoice {
   amount: number;
   status: 'Draft' | 'Submitted' | 'Approved' | 'Paid';
   createdDate: string;
+  submitted_date?: string | null;
   description: string;
+  files?: Array<{ id: string; file_name: string; storage_path: string }>;
 }
 
 export function VendorEngagementDetail() {
@@ -123,7 +125,9 @@ export function VendorEngagementDetail() {
             status: (inv.status.charAt(0).toUpperCase() +
               inv.status.slice(1)) as Invoice['status'],
             createdDate: inv.created_at,
+            submitted_date: inv.submitted_date,
             description: `Invoice ${inv.invoice_number}`,
+            files: inv.files,
           })),
         };
       })()

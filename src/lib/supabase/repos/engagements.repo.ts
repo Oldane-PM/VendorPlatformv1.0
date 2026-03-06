@@ -505,30 +505,30 @@ export async function getVendorEngagementByVeNumber(
   let invoices: InvoiceRow[] = [];
   if (match.engagement_uuid) {
     const { data: invRows } = await sb
-      .from('invoices')
-      .select('*, invoice_files(*)')
+      .from('engagement_invoice_submissions')
+      .select('*, engagement_invoice_submission_files(*)')
       .eq('engagement_id', match.engagement_uuid)
-      .order('created_at', { ascending: false });
+      .order('submitted_at', { ascending: false });
 
     invoices = (invRows ?? []).map((inv: any) => ({
       id: inv.id,
       engagement_id: inv.engagement_id,
-      invoice_number: inv.invoice_number ?? `INV-${inv.id.slice(0, 8)}`,
+      invoice_number: inv.invoice_number_text ?? `INV-${inv.id.slice(0, 8)}`,
       vendor_name: match.vendor_name,
-      amount: inv.total_amount ?? 0,
+      amount: inv.total ?? 0,
       due_date: inv.due_date ?? null,
       status: inv.status ?? 'Submitted',
-      submitted_date: inv.created_at,
+      submitted_date: inv.submitted_at,
       approved_date: null,
       paid_date: null,
       aging_days: 0,
       files:
-        inv.invoice_files?.map((f: any) => ({
+        inv.engagement_invoice_submission_files?.map((f: any) => ({
           id: f.id,
           file_name: f.file_name,
           storage_path: f.storage_path,
         })) || [],
-      created_at: inv.created_at,
+      created_at: inv.submitted_at,
     }));
   }
 

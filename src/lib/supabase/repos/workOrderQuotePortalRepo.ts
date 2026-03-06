@@ -80,6 +80,7 @@ export interface ValidatedRequest {
   id: string;
   org_id: string;
   work_order_id: string;
+  vendor_id: string;
   allowed_doc_types: string[];
   expires_at: string;
   status: string;
@@ -127,6 +128,7 @@ export async function validateToken(
 // ─── 1) createUploadLink ────────────────────────────────────────────────────
 
 export interface CreateUploadLinkPayload {
+  vendorId: string;
   allowedDocTypes?: string[];
   expiresInHours?: number;
   maxFiles?: number;
@@ -144,7 +146,7 @@ export async function createUploadLink(
   orgId: string,
   createdBy: string,
   workOrderId: string,
-  config: CreateUploadLinkPayload = {}
+  config: CreateUploadLinkPayload
 ): Promise<CreateUploadLinkResult> {
   const client = supabase() as any;
 
@@ -157,6 +159,7 @@ export async function createUploadLink(
   const row = {
     org_id: orgId,
     work_order_id: workOrderId,
+    vendor_id: config.vendorId,
     allowed_doc_types: config.allowedDocTypes ?? ['quote', 'supporting'],
     token_hash: tokenHash,
     expires_at: expiresAt,
@@ -287,6 +290,7 @@ export async function createSubmission(
       org_id: req.org_id,
       work_order_id: req.work_order_id,
       upload_request_id: requestId,
+      vendor_id: req.vendor_id,
       vendor_name: payload.vendorName,
       vendor_email: payload.vendorEmail ?? null,
       vendor_phone: payload.vendorPhone ?? null,

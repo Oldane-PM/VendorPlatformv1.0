@@ -59,7 +59,7 @@ export async function listInvoices(): Promise<InvoiceRow[]> {
   const supabase = createServerClient();
 
   const { data, error } = await supabase
-    .from('invoices')
+    .from('engagement_invoice_submissions')
     .select(
       `
       *,
@@ -67,20 +67,26 @@ export async function listInvoices(): Promise<InvoiceRow[]> {
       engagements:engagement_id ( title )
     `
     )
-    .order('created_at', { ascending: false });
+    .order('submitted_at', { ascending: false });
 
   if (error) {
     console.error('[invoices.repo.listInvoices]', error);
     throw new Error(error.message);
   }
 
-  // Flatten joined fields
+  // Flatten joined fields and normalize schema
   return (data ?? []).map((row: any) => ({
-    ...row,
+    id: row.id,
+    vendor_id: row.vendor_id,
+    engagement_id: row.engagement_id,
+    invoice_number: row.invoice_number_text ?? `INV-${row.id.slice(0, 8)}`,
+    status: row.status,
+    total_amount: row.total,
+    due_date: row.due_date,
+    created_at: row.submitted_at,
+    created_by: null,
     vendor_name: row.vendors?.vendor_name ?? null,
     engagement_title: row.engagements?.title ?? null,
-    vendors: undefined,
-    engagements: undefined,
   })) as InvoiceRow[];
 }
 
@@ -94,7 +100,7 @@ export async function getInvoiceById(
 
   // Fetch invoice + joins
   const { data: invoice, error: invErr } = await supabase
-    .from('invoices')
+    .from('engagement_invoice_submissions')
     .select(
       `
       *,
@@ -114,9 +120,9 @@ export async function getInvoiceById(
 
   // Fetch files
   const { data: files, error: filesErr } = await supabase
-    .from('invoice_files')
+    .from('engagement_invoice_submission_files')
     .select('*')
-    .eq('invoice_id', invoiceId)
+    .eq('submission_id', invoiceId)
     .order('uploaded_at', { ascending: false });
 
   if (filesErr) {
@@ -127,11 +133,17 @@ export async function getInvoiceById(
   const row = invoice as any;
 
   return {
-    ...row,
+    id: row.id,
+    vendor_id: row.vendor_id,
+    engagement_id: row.engagement_id,
+    invoice_number: row.invoice_number_text ?? `INV-${row.id.slice(0, 8)}`,
+    status: row.status,
+    total_amount: row.total,
+    due_date: row.due_date,
+    created_at: row.submitted_at,
+    created_by: null,
     vendor_name: row.vendors?.vendor_name ?? null,
     engagement_title: row.engagements?.title ?? null,
-    vendors: undefined,
-    engagements: undefined,
     files: (files ?? []) as InvoiceFileRow[],
   } as InvoiceDetail;
 }

@@ -76,8 +76,8 @@ VALUES ('vendor_invoices', 'vendor_invoices', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policy: Service Role Full Access on vendor_invoices bucket
-DROP POLICY IF EXISTS "Service Role Full Access" ON storage.objects;
-CREATE POLICY "Service Role Full Access"
+DROP POLICY IF EXISTS "Service Role Full Access - vendor_invoices" ON storage.objects;
+CREATE POLICY "Service Role Full Access - vendor_invoices"
 ON storage.objects
 FOR ALL
 TO service_role

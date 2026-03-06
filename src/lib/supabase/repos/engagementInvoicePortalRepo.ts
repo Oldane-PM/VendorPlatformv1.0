@@ -459,34 +459,7 @@ export async function finalizeInvoiceFile(
     throw new Error('Failed to create document record.');
   }
 
-  // 4. Create the core `invoices` row (Option 2 implementation)
-  const { data: invoiceRow } = await client
-    .from('invoices')
-    .insert({
-      vendor_id: req.vendor_id,
-      engagement_id: req.engagement_id,
-      invoice_number: subRow?.invoice_number_text ?? null,
-      status: 'Submitted',
-      total_amount: subRow?.total ?? null,
-      due_date: subRow?.due_date ?? null,
-      created_by: null, // User is not authenticated in this portal
-    })
-    .select('id')
-    .single();
-
-  if (invoiceRow) {
-    // Attempt to link it via invoice_files tracking if it exists
-    await client
-      .from('invoice_files')
-      .insert({
-        invoice_id: invoiceRow.id,
-        storage_path: fileRow.storage_path,
-        file_name: fileRow.file_name,
-        mime_type: fileRow.mime_type,
-      })
-      .select()
-      .maybeSingle();
-  }
+  // Removed the insertion into the non-existent `invoices` and `invoice_files` tables.
 
   // 5. Update submission file
   await client
@@ -508,7 +481,6 @@ export async function finalizeInvoiceFile(
     {
       document_id: doc.id,
       file_name: fileRow.file_name,
-      invoice_id: invoiceRow?.id,
     }
   );
 
