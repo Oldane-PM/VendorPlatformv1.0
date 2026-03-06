@@ -172,7 +172,7 @@ export async function listEngagements(): Promise<{
   const { data, error } = await supabase()
     .from('engagements')
     .select('*')
-    .order('engagement_number', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (error) {
     return {
@@ -200,12 +200,12 @@ export async function getEngagementById(
         .from('engagement_rfqs')
         .select('*')
         .eq('engagement_id', id)
-        .order('created_at'),
+        .order('created_at', { ascending: false }),
       sb
         .from('engagement_documents')
         .select('*')
         .eq('engagement_id', id)
-        .order('created_at'),
+        .order('created_at', { ascending: false }),
       sb
         .from('engagement_approval_steps')
         .select('*')
@@ -215,12 +215,12 @@ export async function getEngagementById(
         .from('engagement_invoices')
         .select('*')
         .eq('engagement_id', id)
-        .order('created_at'),
+        .order('created_at', { ascending: false }),
       sb
         .from('engagement_activity_log')
         .select('*')
         .eq('engagement_id', id)
-        .order('timestamp'),
+        .order('timestamp', { ascending: false }),
     ]);
 
   if (engRes.error) {
@@ -367,7 +367,7 @@ export async function listVendorEngagements(): Promise<{
   const { data: veRows, error: veError } = await sb
     .from('vendor_engagements')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (veError) {
     console.error('[engagements.repo] listVendorEngagements error:', veError);
@@ -508,7 +508,7 @@ export async function getVendorEngagementByVeNumber(
       .from('invoices')
       .select('*, invoice_files(*)')
       .eq('engagement_id', match.engagement_uuid)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     invoices = (invRows ?? []).map((inv: any) => ({
       id: inv.id,
