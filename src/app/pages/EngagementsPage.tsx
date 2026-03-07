@@ -9,10 +9,12 @@ import {
   Loader2,
   Calendar,
   FileText,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { useEngagements, type Engagement } from '@/lib/hooks/useEngagements';
 import { useWorkOrderVendorSubmissions } from '@/lib/hooks/useWorkOrderVendorSubmissions';
-import { Search, Filter } from 'lucide-react';
+import { MonthPicker } from '../components/MonthPicker';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ export function EngagementsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [impactFilter, setImpactFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEngagement, setCurrentEngagement] = useState<Engagement | null>(
@@ -272,7 +275,14 @@ export function EngagementsPage() {
       (engagement.project_impact &&
         engagement.project_impact.toLowerCase() === impactFilter.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesImpact;
+    // 4. Month
+    const matchesDate =
+      !dateFilter ||
+      (engagement.created_at &&
+        new Date(engagement.created_at).toISOString().slice(0, 7) ===
+          dateFilter);
+
+    return matchesSearch && matchesStatus && matchesImpact && matchesDate;
   });
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -321,54 +331,6 @@ export function EngagementsPage() {
             <Plus className="w-4 h-4" />
             Create Engagement
           </button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by title or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="on_hold">On Hold</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-
-          {/* Impact Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={impactFilter}
-              onChange={(e) => setImpactFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Project Impacts</option>
-              <option value="High">High Impact</option>
-              <option value="Medium">Medium Impact</option>
-              <option value="Low">Low Impact</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -510,6 +472,67 @@ export function EngagementsPage() {
           {/* Table View */}
           {viewMode === 'table' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Filter Bar inside table */}
+              <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by title or ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-48"
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Impact Filter */}
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <select
+                      value={impactFilter}
+                      onChange={(e) => setImpactFilter(e.target.value)}
+                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                    >
+                      <option value="all">All Impacts</option>
+                      <option value="High">High Impact</option>
+                      <option value="Medium">Medium Impact</option>
+                      <option value="Low">Low Impact</option>
+                    </select>
+                  </div>
+
+                  {/* Date Filter */}
+                  <div className="relative">
+                    <MonthPicker
+                      value={dateFilter}
+                      onChange={(val) => setDateFilter(val)}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  Showing {filteredEngagements.length} of {engagements.length}{' '}
+                  engagements
+                </p>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">

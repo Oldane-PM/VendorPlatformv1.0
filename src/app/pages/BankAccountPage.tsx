@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useBankAccounts } from '@/lib/hooks/useBankAccounts';
+import { MonthPicker } from '../components/MonthPicker';
 import { cardBrandLabel } from '@/lib/utils/detectCardBrand';
 import type { CardBrand } from '@/lib/utils/detectCardBrand';
 import {
@@ -94,6 +95,7 @@ export function BankAccountPage() {
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
 
   const [isEditingTransaction, setIsEditingTransaction] = useState(false);
   const [editTransactionForm, setEditTransactionForm] = useState<
@@ -189,9 +191,14 @@ export function BankAccountPage() {
       // 2. Type
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
 
-      return matchesSearch && matchesType;
+      // 3. Date
+      const matchesDate =
+        !dateFilter ||
+        (t.date && new Date(t.date).toISOString().slice(0, 7) === dateFilter);
+
+      return matchesSearch && matchesType && matchesDate;
     });
-  }, [transactions, searchTerm, typeFilter]);
+  }, [transactions, searchTerm, typeFilter, dateFilter]);
 
   // Get current account
   const currentAccount = accounts.find((acc) => acc.id === selectedAccountId);
@@ -532,28 +539,12 @@ export function BankAccountPage() {
               </select>
             </div>
 
-            {/* View Toggle */}
-            <div className="inline-flex items-center bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('month')}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  viewMode === 'month'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                This Month
-              </button>
-              <button
-                onClick={() => setViewMode('all')}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  viewMode === 'all'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                View All
-              </button>
+            {/* Date Filter */}
+            <div className="relative flex items-center bg-gray-100 rounded-lg p-1">
+              <MonthPicker
+                value={dateFilter}
+                onChange={(val: string) => setDateFilter(val)}
+              />
             </div>
 
             {/* Export CSV */}

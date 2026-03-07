@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Search, Filter, Receipt } from 'lucide-react';
 import { useInvoices } from '@/lib/hooks/useInvoices';
+import { MonthPicker } from '../components/MonthPicker';
 
 export function InvoicesPage() {
   const { invoices, isLoading, error } = useInvoices();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState('');
   const router = useRouter();
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -21,7 +23,12 @@ export function InvoicesPage() {
 
     const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesDate =
+      !dateFilter ||
+      (inv.created_at &&
+        new Date(inv.created_at).toISOString().slice(0, 7) === dateFilter);
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Status badge styling
@@ -86,43 +93,6 @@ export function InvoicesPage() {
         </div>
       )}
 
-      {/* Filters */}
-      {!isLoading && !error && invoices.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by invoice number, vendor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="Submitted">Submitted</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Paid">Paid</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Empty State */}
       {!isLoading && !error && invoices.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
@@ -145,6 +115,53 @@ export function InvoicesPage() {
       {!isLoading && !error && invoices.length > 0 && (
         <>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {/* Filter Bar inside table */}
+            <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by invoice number, vendor..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-56"
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+
+                {/* Date Filter */}
+                <div className="relative">
+                  <MonthPicker
+                    value={dateFilter}
+                    onChange={(val) => setDateFilter(val)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Showing {filteredInvoices.length} of {invoices.length} invoices
+              </p>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
