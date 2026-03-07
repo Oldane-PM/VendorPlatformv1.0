@@ -12,6 +12,7 @@ import {
   X,
   Download,
   Filter,
+  Search,
   Paperclip,
   Eye,
   ChevronDown,
@@ -88,6 +89,11 @@ export function BankAccountPage() {
   const [isTransactionDetailOpen, setIsTransactionDetailOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
+
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);
@@ -164,6 +170,23 @@ export function BankAccountPage() {
     exchangeRate: '1.0',
     bankTransferFee: '',
   });
+
+  // Filter Transactions
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      // 1. Search (Vendor/Source, ID, or Notes)
+      const search = searchTerm.toLowerCase();
+      const matchesSearch =
+        (t.vendor?.toLowerCase() || '').includes(search) ||
+        (t.fundingSource?.toLowerCase() || '').includes(search) ||
+        t.id.toLowerCase().includes(search);
+
+      // 2. Type
+      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+
+      return matchesSearch && matchesType;
+    });
+  }, [transactions, searchTerm, typeFilter]);
 
   // Get current account
   const currentAccount = accounts.find((acc) => acc.id === selectedAccountId);
@@ -438,9 +461,36 @@ export function BankAccountPage() {
       {/* Transactions & Fees - Combined View */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Section Header */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h3 className="font-semibold text-gray-900">Transactions & Fees</h3>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search vendor or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-48"
+              />
+            </div>
+
+            {/* Type Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+              >
+                <option value="all">All Types</option>
+                <option value="Funding">Funding</option>
+                <option value="Payment">Payment</option>
+                <option value="Fee">Fee</option>
+              </select>
+            </div>
+
             {/* View Toggle */}
             <div className="inline-flex items-center bg-gray-100 rounded-lg p-1">
               <button
@@ -514,7 +564,7 @@ export function BankAccountPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
+              {filteredTransactions.map((transaction) => (
                 <tr
                   key={transaction.id}
                   onClick={() => openTransactionDetail(transaction)}
