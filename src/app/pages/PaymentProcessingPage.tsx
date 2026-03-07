@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PaymentReviewDrawer } from '../components/PaymentReviewDrawer';
 import { usePaymentProcessing } from '@/lib/hooks/usePaymentProcessing';
+import { MonthPicker } from '../components/MonthPicker';
 
 interface InvoicePayment {
   id: string;
@@ -94,7 +95,10 @@ export function PaymentProcessingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [vendorFilter, setVendorFilter] = useState<string>('All');
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('All');
+  const [dateFilter, setDateFilter] = useState('');
+  const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedInvoice, setSelectedInvoice] = useState<InvoicePayment | null>(
     null
   );
@@ -126,7 +130,13 @@ export function PaymentProcessingPage() {
     const matchesVendor =
       vendorFilter === 'All' || invoice.vendorName === vendorFilter;
 
-    return matchesSearch && matchesStatus && matchesVendor;
+    const matchesDate =
+      !dateFilter ||
+      (invoice.uploadedDate &&
+        new Date(invoice.uploadedDate).toISOString().slice(0, 7) ===
+          dateFilter);
+
+    return matchesSearch && matchesStatus && matchesVendor && matchesDate;
   });
 
   // Status badge styling
@@ -299,67 +309,75 @@ export function PaymentProcessingPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by invoice #, vendor name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">
-                Filters:
-              </span>
+      {/* Invoice Payment Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Filter Bar inside table */}
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by invoice #, vendor name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-56"
+              />
             </div>
 
             {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="All">All Status</option>
-              <option value="Pending Payment">Pending Payment</option>
-              <option value="Completed">Completed</option>
-              <option value="Draft">Draft</option>
-            </select>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+              >
+                <option value="All">All Status</option>
+                <option value="Pending Payment">Pending Payment</option>
+                <option value="Completed">Completed</option>
+                <option value="Draft">Draft</option>
+              </select>
+            </div>
 
             {/* Vendor Filter */}
-            <select
-              value={vendorFilter}
-              onChange={(e) => setVendorFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="All">All Vendors</option>
-              {uniqueVendors.map((vendor) => (
-                <option key={vendor} value={vendor}>
-                  {vendor}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                value={vendorFilter}
+                onChange={(e) => setVendorFilter(e.target.value)}
+                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+              >
+                <option value="All">All Vendors</option>
+                {uniqueVendors.map((vendor) => (
+                  <option key={vendor} value={vendor}>
+                    {vendor}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Filter */}
+            <div className="relative">
+              <MonthPicker
+                value={dateFilter}
+                onChange={(val) => setDateFilter(val)}
+              />
+            </div>
+
+            {/* Export Button */}
+            <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium">
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </button>
           </div>
 
-          {/* Export Button */}
-          <button className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          <p className="text-xs text-gray-500">
+            Showing {filteredInvoices.length} of {invoices.length} invoices
+          </p>
         </div>
-      </div>
 
-      {/* Invoice Payment Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">

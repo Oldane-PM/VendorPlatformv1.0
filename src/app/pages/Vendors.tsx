@@ -4,6 +4,7 @@ import { Search, Filter, Star, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { AddVendorPanel } from '../components/AddVendorPanel';
 import { PerformanceRating } from '../components/PerformanceRating';
 import { useVendors } from '@/lib/hooks/useVendors';
+import { MonthPicker } from '../components/MonthPicker';
 
 export function Vendors() {
   const {
@@ -19,6 +20,7 @@ export function Vendors() {
   } = useVendors();
 
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [showAddVendorPanel, setShowAddVendorPanel] = useState(false);
 
   // Vendor form state
@@ -51,7 +53,14 @@ export function Vendors() {
   // Client-side category filter (category is not in the DB yet)
   const filteredVendors = vendors.filter((vendor) => {
     // Category filtering is a no-op until the column is added to DB
-    return categoryFilter === 'all' || true;
+    const matchesCategory = categoryFilter === 'all' || true;
+
+    const matchesDate =
+      !dateFilter ||
+      (vendor.created_at &&
+        new Date(vendor.created_at).toISOString().slice(0, 7) === dateFilter);
+
+    return matchesCategory && matchesDate;
   });
 
   const generateVendorId = () => {
@@ -167,50 +176,6 @@ export function Vendors() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search vendors..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-
-          {/* Category Filter (placeholder until DB column exists) */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Categories</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
       {/* Loading State */}
       {loading && (
         <div className="bg-white rounded-lg shadow p-12 flex flex-col items-center justify-center">
@@ -239,6 +204,62 @@ export function Vendors() {
       {/* Vendors Table */}
       {!loading && !error && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          {/* Filter Bar inside table */}
+          <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search vendors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-48"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+
+              {/* Category Filter */}
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">All Categories</option>
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="relative">
+                <MonthPicker
+                  value={dateFilter}
+                  onChange={(val) => setDateFilter(val)}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Showing {filteredVendors.length} of {vendors.length} vendors
+            </p>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">

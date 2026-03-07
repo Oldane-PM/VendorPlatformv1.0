@@ -9,9 +9,12 @@ import {
   Loader2,
   Calendar,
   FileText,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { useEngagements, type Engagement } from '@/lib/hooks/useEngagements';
 import { useWorkOrderVendorSubmissions } from '@/lib/hooks/useWorkOrderVendorSubmissions';
+import { MonthPicker } from '../components/MonthPicker';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -30,6 +33,10 @@ export function EngagementsPage() {
   } = useEngagements();
 
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [impactFilter, setImpactFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEngagement, setCurrentEngagement] = useState<Engagement | null>(
@@ -250,6 +257,34 @@ export function EngagementsPage() {
     }
   };
 
+  const filteredEngagements = engagements.filter((engagement) => {
+    // 1. Search (Title or ID)
+    const matchesSearch =
+      engagement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `ENG-${String(engagement.engagement_number).padStart(4, '0')}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    // 2. Status
+    const matchesStatus =
+      statusFilter === 'all' || engagement.status === statusFilter;
+
+    // 3. Impact
+    const matchesImpact =
+      impactFilter === 'all' ||
+      (engagement.project_impact &&
+        engagement.project_impact.toLowerCase() === impactFilter.toLowerCase());
+
+    // 4. Month
+    const matchesDate =
+      !dateFilter ||
+      (engagement.created_at &&
+        new Date(engagement.created_at).toISOString().slice(0, 7) ===
+          dateFilter);
+
+    return matchesSearch && matchesStatus && matchesImpact && matchesDate;
+  });
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -323,7 +358,7 @@ export function EngagementsPage() {
       )}
 
       {/* Empty State */}
-      {!isLoading && !fetchError && engagements.length === 0 && (
+      {!isLoading && !fetchError && filteredEngagements.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
           <div className="max-w-md mx-auto text-center">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -347,12 +382,12 @@ export function EngagementsPage() {
       )}
 
       {/* Content */}
-      {!isLoading && !fetchError && engagements.length > 0 && (
+      {!isLoading && !fetchError && filteredEngagements.length > 0 && (
         <>
           {/* Card View */}
           {viewMode === 'cards' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fadeIn">
-              {engagements.map((engagement) => {
+              {filteredEngagements.map((engagement) => {
                 const impact = (engagement.project_impact || 'Medium') as
                   | 'High'
                   | 'Medium'
@@ -437,6 +472,67 @@ export function EngagementsPage() {
           {/* Table View */}
           {viewMode === 'table' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Filter Bar inside table */}
+              <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by title or ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-48"
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Impact Filter */}
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <select
+                      value={impactFilter}
+                      onChange={(e) => setImpactFilter(e.target.value)}
+                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                    >
+                      <option value="all">All Impacts</option>
+                      <option value="High">High Impact</option>
+                      <option value="Medium">Medium Impact</option>
+                      <option value="Low">Low Impact</option>
+                    </select>
+                  </div>
+
+                  {/* Date Filter */}
+                  <div className="relative">
+                    <MonthPicker
+                      value={dateFilter}
+                      onChange={(val) => setDateFilter(val)}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  Showing {filteredEngagements.length} of {engagements.length}{' '}
+                  engagements
+                </p>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
@@ -462,7 +558,7 @@ export function EngagementsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {engagements.map((engagement, index) => (
+                    {filteredEngagements.map((engagement, index) => (
                       <tr
                         key={engagement.id}
                         onClick={() => handleCardClick(engagement.id)}

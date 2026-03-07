@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { Plus, FileCheck, Search, Filter, Loader2 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { CreateWorkOrderModal } from '../components/CreateWorkOrderModal';
+import { MonthPicker } from '../components/MonthPicker';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ export function WorkOrdersPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────
@@ -141,7 +143,12 @@ export function WorkOrdersPage() {
 
     const matchesStatus = statusFilter === 'all' || wo.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesDate =
+      !dateFilter ||
+      (wo.created_at &&
+        new Date(wo.created_at).toISOString().slice(0, 7) === dateFilter);
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -163,42 +170,6 @@ export function WorkOrdersPage() {
           Create Work Order
         </button>
       </div>
-
-      {/* Filters */}
-      {!isLoading && workOrders.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by WO number, title, or engagement…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="awarded">Awarded</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Loading State */}
       {isLoading && (
@@ -252,6 +223,53 @@ export function WorkOrdersPage() {
       {!isLoading && !fetchError && workOrders.length > 0 && (
         <>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {/* Filter Bar inside table */}
+            <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by WO number, title, or engagement…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-64"
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="awarded">Awarded</option>
+                  </select>
+                </div>
+
+                {/* Date Filter */}
+                <div className="relative">
+                  <MonthPicker
+                    value={dateFilter}
+                    onChange={(val) => setDateFilter(val)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Showing {filteredWorkOrders.length} of {workOrders.length} work
+                orders
+              </p>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">

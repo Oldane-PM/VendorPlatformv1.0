@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { VendorEngagementCard } from '../components/VendorEngagementCard';
 import { useVendorEngagements } from '@/lib/hooks/useVendorEngagements';
+import { MonthPicker } from '../components/MonthPicker';
 
 // Milestone type
 interface Milestone {
@@ -63,6 +64,7 @@ export function EngagementList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -129,7 +131,12 @@ export function EngagementList() {
       const matchesDepartment =
         departmentFilter === 'all' || eng.department === departmentFilter;
 
-      return matchesSearch && matchesStatus && matchesDepartment;
+      const matchesDate =
+        !dateFilter ||
+        (eng.startDate &&
+          new Date(eng.startDate).toISOString().slice(0, 7) === dateFilter);
+
+      return matchesSearch && matchesStatus && matchesDepartment && matchesDate;
     })
     .sort((a, b) => {
       if (sortBy === 'date') {
@@ -208,7 +215,7 @@ export function EngagementList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">
             Vendor Engagements
@@ -217,115 +224,34 @@ export function EngagementList() {
             Active and completed awarded vendor work
           </p>
         </div>
-      </div>
-
-      {/* Filters */}
-      {vendorEngagements.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by title, vendor, or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              />
-            </div>
-
-            {/* Department Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white text-sm"
-              >
-                <option value="all">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="Active">Active</option>
-                <option value="In Progress">In Progress</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Completed">Completed</option>
-                <option value="Terminated">Terminated</option>
-              </select>
-            </div>
-          </div>
-
-          {/* View Toggle and Sort Options */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 font-medium">
-                Sort by:
-              </span>
-              <button
-                onClick={() => setSortBy('date')}
-                className={`text-sm px-3 py-1 rounded ${
-                  sortBy === 'date'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Date
-              </button>
-              <button
-                onClick={() => setSortBy('value')}
-                className={`text-sm px-3 py-1 rounded ${
-                  sortBy === 'value'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Value
-              </button>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'table'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <LayoutList className="w-4 h-4" />
-                Table View
-              </button>
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'cards'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                Card View
-              </button>
-            </div>
+        <div className="flex items-center gap-3">
+          {/* View Mode Toggle */}
+          <div className="inline-flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'cards'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Cards</span>
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'table'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutList className="w-4 h-4" />
+              <span className="hidden sm:inline">Table</span>
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Engagements - Card or Table View */}
       {vendorEngagements.length === 0 ? (
@@ -387,6 +313,94 @@ export function EngagementList() {
         // Table View
         <>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {/* Filter Bar inside table */}
+            <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by title, vendor, or ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent w-56"
+                  />
+                </div>
+
+                {/* Department Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={departmentFilter}
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                  >
+                    <option value="all">All Departments</option>
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Active">Active</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Terminated">Terminated</option>
+                  </select>
+                </div>
+
+                {/* Sort */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setSortBy('date')}
+                    className={`text-xs px-3 py-1.5 rounded-lg ${
+                      sortBy === 'date'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Date
+                  </button>
+                  <button
+                    onClick={() => setSortBy('value')}
+                    className={`text-xs px-3 py-1.5 rounded-lg ${
+                      sortBy === 'value'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Value
+                  </button>
+                </div>
+
+                {/* Date Filter */}
+                <div className="relative">
+                  <MonthPicker
+                    value={dateFilter}
+                    onChange={(val) => setDateFilter(val)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Showing {filteredEngagements.length} of{' '}
+                {vendorEngagements.length} engagements
+              </p>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
