@@ -106,6 +106,17 @@ export interface CreateTransactionInput {
   notes?: string;
 }
 
+export interface UpdateTransactionInput {
+  vendor?: string;
+  fee_amount?: number;
+  exchange_rate?: number;
+  reconciled?: boolean;
+  funding_source?: string;
+  fee_type?: string;
+  reference_number?: string;
+  notes?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Bank Account Queries                                               */
 /* ------------------------------------------------------------------ */
@@ -263,6 +274,28 @@ export async function createTransaction(
 
   if (error) {
     console.error('[bankAccounts.repo.createTransaction]', error);
+    throw new Error(error.message);
+  }
+
+  return data as BankTransactionRow;
+}
+
+/** Update an existing transaction. */
+export async function updateTransaction(
+  id: string,
+  input: UpdateTransactionInput
+): Promise<BankTransactionRow> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from('bank_transactions')
+    .update(input)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('[bankAccounts.repo.updateTransaction]', error);
     throw new Error(error.message);
   }
 

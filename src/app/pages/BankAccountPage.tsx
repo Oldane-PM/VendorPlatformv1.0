@@ -81,6 +81,7 @@ export function BankAccountPage() {
     error,
     createAccount: hookCreateAccount,
     addFunds: hookAddFunds,
+    updateTransaction,
     deactivateAccount: hookDeactivate,
   } = useBankAccounts();
 
@@ -94,6 +95,10 @@ export function BankAccountPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  const [isEditingTransaction, setIsEditingTransaction] = useState(false);
+  const [editTransactionForm, setEditTransactionForm] = useState<
+    Partial<Transaction>
+  >({});
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);
@@ -279,7 +284,43 @@ export function BankAccountPage() {
   // Open transaction detail
   const openTransactionDetail = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
+    setEditTransactionForm(transaction);
+    setIsEditingTransaction(false);
     setIsTransactionDetailOpen(true);
+  };
+
+  // Handle Edit Transaction Submit
+  const handleEditTransactionSubmit = async () => {
+    if (!selectedTransaction) return;
+    try {
+      const updated = await updateTransaction(selectedTransaction.id, {
+        vendor: editTransactionForm.vendor || undefined,
+        fee_amount: editTransactionForm.feeAmount,
+        exchange_rate: editTransactionForm.exchangeRate,
+        reconciled:
+          (editTransactionForm.reconciled as any) === 'Yes' ||
+          editTransactionForm.reconciled === true,
+        funding_source: editTransactionForm.fundingSource || undefined,
+        fee_type: editTransactionForm.feeType || undefined,
+      });
+      setIsEditingTransaction(false);
+
+      // Update the local drawer selected transaction copy to match what was saved
+      setSelectedTransaction({
+        ...selectedTransaction,
+        vendor: updated.vendor || undefined,
+        feeAmount: Number(updated.fee_amount),
+        exchangeRate: updated.exchange_rate
+          ? Number(updated.exchange_rate)
+          : undefined,
+        reconciled: updated.reconciled,
+        fundingSource: updated.funding_source || undefined,
+        feeType: (updated.fee_type as Transaction['feeType']) || undefined,
+      });
+    } catch (err) {
+      console.error('Update transaction failed:', err);
+      alert('Failed to update transaction');
+    }
   };
 
   // Get card gradient colors based on selection
@@ -969,12 +1010,40 @@ export function BankAccountPage() {
                   {selectedTransaction.id}
                 </p>
               </div>
-              <button
-                onClick={() => setIsTransactionDetailOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {!isEditingTransaction ? (
+                  <button
+                    onClick={() => setIsEditingTransaction(true)}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsEditingTransaction(false);
+                        setEditTransactionForm(selectedTransaction);
+                      }}
+                      className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleEditTransactionSubmit}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      Save
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setIsTransactionDetailOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Drawer Body */}
@@ -1027,56 +1096,116 @@ export function BankAccountPage() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Fee Amount
                   </p>
-                  <p className="text-sm text-gray-900">
-                    {selectedTransaction.feeAmount > 0
-                      ? formatCurrency(
-                          selectedTransaction.feeAmount,
-                          selectedTransaction.currency
-                        )
-                      : '—'}
-                  </p>
+                  {isEditingTransaction ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editTransactionForm.feeAmount ?? ''}
+                      onChange={(e) =>
+                        setEditTransactionForm({
+                          ...editTransactionForm,
+                          feeAmount: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">
+                      {selectedTransaction.feeAmount > 0
+                        ? formatCurrency(
+                            selectedTransaction.feeAmount,
+                            selectedTransaction.currency
+                          )
+                        : '—'}
+                    </p>
+                  )}
                 </div>
-                {selectedTransaction.vendor && (
+                {(selectedTransaction.vendor || isEditingTransaction) && (
                   <div className="col-span-2">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                       Vendor
                     </p>
-                    <p className="text-sm text-gray-900">
-                      {selectedTransaction.vendor}
-                    </p>
+                    {isEditingTransaction ? (
+                      <input
+                        type="text"
+                        value={editTransactionForm.vendor ?? ''}
+                        onChange={(e) =>
+                          setEditTransactionForm({
+                            ...editTransactionForm,
+                            vendor: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">
+                        {selectedTransaction.vendor}
+                      </p>
+                    )}
                   </div>
                 )}
-                {selectedTransaction.fundingSource && (
+                {(selectedTransaction.fundingSource ||
+                  isEditingTransaction) && (
                   <div className="col-span-2">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                       Funding Source
                     </p>
-                    <p className="text-sm text-gray-900">
-                      {selectedTransaction.fundingSource}
-                    </p>
+                    {isEditingTransaction ? (
+                      <input
+                        type="text"
+                        value={editTransactionForm.fundingSource ?? ''}
+                        onChange={(e) =>
+                          setEditTransactionForm({
+                            ...editTransactionForm,
+                            fundingSource: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-900">
+                        {selectedTransaction.fundingSource}
+                      </p>
+                    )}
                   </div>
                 )}
-                {selectedTransaction.exchangeRate &&
-                  selectedTransaction.exchangeRate !== 1.0 && (
-                    <>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                          Exchange Rate
-                        </p>
+                {(selectedTransaction.exchangeRate !== undefined ||
+                  isEditingTransaction) && (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        Exchange Rate
+                      </p>
+                      {isEditingTransaction ? (
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={editTransactionForm.exchangeRate ?? ''}
+                          onChange={(e) =>
+                            setEditTransactionForm({
+                              ...editTransactionForm,
+                              exchangeRate:
+                                parseFloat(e.target.value) || undefined,
+                            })
+                          }
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      ) : (
                         <p className="text-sm text-gray-900">
-                          {selectedTransaction.exchangeRate}
+                          {selectedTransaction.exchangeRate || 1.0}
                         </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                          Currency
-                        </p>
-                        <p className="text-sm text-gray-900">
-                          {selectedTransaction.currency}
-                        </p>
-                      </div>
-                    </>
-                  )}
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        Currency
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {selectedTransaction.currency}
+                      </p>
+                    </div>
+                  </>
+                )}
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Balance After
@@ -1092,13 +1221,29 @@ export function BankAccountPage() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                     Reconciled
                   </p>
-                  <p className="text-sm text-gray-900">
-                    {selectedTransaction.reconciled ? (
-                      <span className="text-green-600 font-medium">Yes</span>
-                    ) : (
-                      <span className="text-red-600 font-medium">No</span>
-                    )}
-                  </p>
+                  {isEditingTransaction ? (
+                    <select
+                      value={editTransactionForm.reconciled ? 'Yes' : 'No'}
+                      onChange={(e) =>
+                        setEditTransactionForm({
+                          ...editTransactionForm,
+                          reconciled: e.target.value === 'Yes',
+                        })
+                      }
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  ) : (
+                    <p className="text-sm text-gray-900">
+                      {selectedTransaction.reconciled ? (
+                        <span className="text-green-600 font-medium">Yes</span>
+                      ) : (
+                        <span className="text-red-600 font-medium">No</span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 

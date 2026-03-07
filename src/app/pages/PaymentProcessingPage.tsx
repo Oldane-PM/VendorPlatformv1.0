@@ -20,6 +20,8 @@ interface InvoicePayment {
   invoiceNumber: string;
   vendorName: string;
   engagementId: string;
+  engagementTitle: string;
+  workorderTitle: string;
   invoiceAmount: number;
   currency: string;
   status: 'Pending Payment' | 'Completed' | 'Draft';
@@ -66,6 +68,8 @@ export function PaymentProcessingPage() {
         invoiceNumber: item.invoice_number,
         vendorName: item.vendor_name,
         engagementId: item.engagement_id,
+        engagementTitle: item.engagements?.title || 'Unknown Engagement',
+        workorderTitle: item.engagements?.work_orders?.[0]?.title || '—',
         invoiceAmount: item.amount,
         currency: 'USD', // defaulting for now, could be added to schema later
         status: uiStatus,
@@ -112,7 +116,10 @@ export function PaymentProcessingPage() {
     const matchesSearch =
       invoice.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.engagementId.toLowerCase().includes(searchQuery.toLowerCase());
+      invoice.engagementTitle
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      invoice.workorderTitle.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'All' || invoice.status === statusFilter;
@@ -367,6 +374,9 @@ export function PaymentProcessingPage() {
                   Engagement
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Work Order
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Invoice Amount
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -401,9 +411,14 @@ export function PaymentProcessingPage() {
                       {invoice.vendorName}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-blue-600">
-                      {invoice.engagementId}
+                  <td className="px-6 py-4">
+                    <span className="text-sm font-semibold text-gray-900 line-clamp-1">
+                      {invoice.engagementTitle}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-500 line-clamp-1">
+                      {invoice.workorderTitle}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -12,6 +12,7 @@ import type {
   BankFeeDto,
   CreateBankAccountPayload,
   CreateTransactionPayload,
+  UpdateTransactionPayload,
 } from '@/lib/domain/bankAccounts/bankAccountsApiRepo';
 
 export interface UseBankAccountsReturn {
@@ -25,6 +26,10 @@ export interface UseBankAccountsReturn {
   refresh: () => void;
   createAccount: (payload: CreateBankAccountPayload) => Promise<BankAccountDto>;
   addFunds: (payload: CreateTransactionPayload) => Promise<BankTransactionDto>;
+  updateTransaction: (
+    transactionId: string,
+    payload: UpdateTransactionPayload
+  ) => Promise<BankTransactionDto>;
   deactivateAccount: (id: string) => Promise<BankAccountDto>;
 }
 
@@ -121,6 +126,27 @@ export function useBankAccounts(): UseBankAccountsReturn {
     [selectedAccountId, fetchAccounts]
   );
 
+  const updateTransaction = useCallback(
+    async (
+      transactionId: string,
+      payload: UpdateTransactionPayload
+    ): Promise<BankTransactionDto> => {
+      if (!selectedAccountId) throw new Error('No account selected');
+      const updated = await bankAccountsApi.updateTransaction(
+        selectedAccountId,
+        transactionId,
+        payload
+      );
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === transactionId ? updated : t))
+      );
+      // Refresh accounts to get updated balance if amount/status changes
+      fetchAccounts();
+      return updated;
+    },
+    [selectedAccountId, fetchAccounts]
+  );
+
   const deactivateAccount = useCallback(
     async (id: string): Promise<BankAccountDto> => {
       const updated = await bankAccountsApi.updateAccount(id, {
@@ -150,6 +176,7 @@ export function useBankAccounts(): UseBankAccountsReturn {
     refresh,
     createAccount,
     addFunds,
+    updateTransaction,
     deactivateAccount,
   };
 }

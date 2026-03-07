@@ -11,6 +11,10 @@ export interface PaymentProcessingItemRow {
   due_date: string | null;
   submitted_date: string | null;
   created_at: string;
+  engagements?: {
+    title: string;
+    work_orders?: { title: string }[];
+  } | null;
 }
 
 export interface PaymentProcessingDetailRow extends PaymentProcessingItemRow {
@@ -48,7 +52,45 @@ export async function listPaymentQueue(): Promise<{
     return { data: null, error: error.message };
   }
 
-  return { data, error: null };
+  // Fetch engagement and work order titles separately
+  const invoices = data || [];
+  const engagementIds = [
+    ...new Set(invoices.map((inv: any) => inv.engagement_id).filter(Boolean)),
+  ];
+
+  if (engagementIds.length === 0) {
+    return { data: invoices, error: null };
+  }
+
+  const [engRes, woRes] = await Promise.all([
+    sb.from('engagements').select('id, title').in('id', engagementIds),
+    sb
+      .from('work_orders')
+      .select('title, engagement_id')
+      .in('engagement_id', engagementIds),
+  ]);
+
+  const engMap = new Map((engRes.data || []).map((e: any) => [e.id, e.title]));
+
+  // Group work orders by engagement_id taking just the first one for the UI format
+  const woMap = new Map();
+  for (const wo of woRes.data || []) {
+    if (!woMap.has(wo.engagement_id)) {
+      woMap.set(wo.engagement_id, wo.title);
+    }
+  }
+
+  const enrichedInvoices = invoices.map((inv: any) => {
+    return {
+      ...inv,
+      engagements: {
+        title: engMap.get(inv.engagement_id) || 'Unknown Engagement',
+        work_orders: [{ title: woMap.get(inv.engagement_id) || '—' }],
+      },
+    };
+  });
+
+  return { data: enrichedInvoices as PaymentProcessingItemRow[], error: null };
 }
 
 export async function getPaymentDetail(id: string): Promise<{
@@ -72,8 +114,32 @@ export async function getPaymentDetail(id: string): Promise<{
     return { data: null, error: invoiceError?.message || 'Invoice not found' };
   }
 
+  // Fetch engagement and work order titles separately
+  let engTitle = 'Unknown Engagement';
+  let woTitle = '—';
+
+  const [engRes, woRes] = await Promise.all([
+    sb
+      .from('engagements')
+      .select('title')
+      .eq('id', invoice.engagement_id)
+      .single(),
+    sb
+      .from('work_orders')
+      .select('title')
+      .eq('engagement_id', invoice.engagement_id)
+      .limit(1),
+  ]);
+
+  if (engRes.data) engTitle = engRes.data.title;
+  if (woRes.data && woRes.data.length > 0) woTitle = woRes.data[0].title;
+
   let detail: PaymentProcessingDetailRow = {
     ...invoice,
+    engagements: {
+      title: engTitle,
+      work_orders: [{ title: woTitle }],
+    },
   };
 
   // If paid, try to fetch the associated bank transaction
