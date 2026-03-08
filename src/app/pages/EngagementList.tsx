@@ -15,6 +15,7 @@ import {
 import { VendorEngagementCard } from '../components/VendorEngagementCard';
 import { useVendorEngagements } from '@/lib/hooks/useVendorEngagements';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 // Milestone type
 interface Milestone {
@@ -329,38 +330,39 @@ export function EngagementList() {
                 </div>
 
                 {/* Department Filter */}
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={departmentFilter}
-                    onChange={(e) => setDepartmentFilter(e.target.value)}
-                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                  >
-                    <option value="all">All Departments</option>
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={departmentFilter}
+                  onChange={(val) => setDepartmentFilter(val)}
+                  icon={<Filter className="w-4 h-4" />}
+                  width="w-48"
+                  placeholder="All Departments"
+                  searchPlaceholder="Search departments..."
+                  options={[
+                    { label: 'All Departments', value: 'all' },
+                    ...departments.map((dept) => ({
+                      label: dept,
+                      value: dept,
+                    })),
+                  ]}
+                />
 
                 {/* Status Filter */}
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="Active">Active</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Terminated">Terminated</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={statusFilter}
+                  onChange={(val) => setStatusFilter(val)}
+                  icon={<Filter className="w-4 h-4" />}
+                  width="w-44"
+                  placeholder="All Status"
+                  searchPlaceholder="Search status..."
+                  options={[
+                    { label: 'All Status', value: 'all' },
+                    { label: 'Active', value: 'Active' },
+                    { label: 'In Progress', value: 'In Progress' },
+                    { label: 'On Hold', value: 'On Hold' },
+                    { label: 'Completed', value: 'Completed' },
+                    { label: 'Terminated', value: 'Terminated' },
+                  ]}
+                />
 
                 {/* Sort */}
                 <div className="flex items-center gap-1">

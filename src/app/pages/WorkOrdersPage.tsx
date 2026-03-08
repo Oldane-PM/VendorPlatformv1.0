@@ -4,6 +4,7 @@ import { Plus, FileCheck, Search, Filter, Loader2 } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { CreateWorkOrderModal } from '../components/CreateWorkOrderModal';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -239,21 +240,22 @@ export function WorkOrdersPage() {
                 </div>
 
                 {/* Status Filter */}
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="draft">Draft</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="awarded">Awarded</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={statusFilter}
+                  onChange={(val) => setStatusFilter(val)}
+                  icon={<Filter className="w-4 h-4" />}
+                  width="w-40"
+                  placeholder="All Status"
+                  searchPlaceholder="Search status..."
+                  options={[
+                    { label: 'All Status', value: 'all' },
+                    { label: 'Draft', value: 'draft' },
+                    { label: 'Open', value: 'open' },
+                    { label: 'In Progress', value: 'in_progress' },
+                    { label: 'Completed', value: 'completed' },
+                    { label: 'Awarded', value: 'awarded' },
+                  ]}
+                />
 
                 {/* Date Filter */}
                 <div className="relative">
