@@ -15,6 +15,7 @@ import {
 import { useEngagements, type Engagement } from '@/lib/hooks/useEngagements';
 import { useWorkOrderVendorSubmissions } from '@/lib/hooks/useWorkOrderVendorSubmissions';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -488,35 +489,37 @@ export function EngagementsPage() {
                   </div>
 
                   {/* Status Filter */}
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                    >
-                      <option value="all">All Statuses</option>
-                      <option value="active">Active</option>
-                      <option value="on_hold">On Hold</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    value={statusFilter}
+                    onChange={(val) => setStatusFilter(val)}
+                    icon={<Filter className="w-4 h-4" />}
+                    width="w-44"
+                    placeholder="All Statuses"
+                    searchPlaceholder="Search status..."
+                    options={[
+                      { label: 'All Statuses', value: 'all' },
+                      { label: 'Active', value: 'active' },
+                      { label: 'On Hold', value: 'on_hold' },
+                      { label: 'Completed', value: 'completed' },
+                      { label: 'Cancelled', value: 'cancelled' },
+                    ]}
+                  />
 
                   {/* Impact Filter */}
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                    <select
-                      value={impactFilter}
-                      onChange={(e) => setImpactFilter(e.target.value)}
-                      className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                    >
-                      <option value="all">All Impacts</option>
-                      <option value="High">High Impact</option>
-                      <option value="Medium">Medium Impact</option>
-                      <option value="Low">Low Impact</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    value={impactFilter}
+                    onChange={(val) => setImpactFilter(val)}
+                    icon={<Filter className="w-4 h-4" />}
+                    width="w-44"
+                    placeholder="All Impacts"
+                    searchPlaceholder="Search impact..."
+                    options={[
+                      { label: 'All Impacts', value: 'all' },
+                      { label: 'High Impact', value: 'High' },
+                      { label: 'Medium Impact', value: 'Medium' },
+                      { label: 'Low Impact', value: 'Low' },
+                    ]}
+                  />
 
                   {/* Date Filter */}
                   <div className="relative">

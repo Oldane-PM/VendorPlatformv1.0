@@ -15,6 +15,7 @@ import {
 import { PaymentReviewDrawer } from '../components/PaymentReviewDrawer';
 import { usePaymentProcessing } from '@/lib/hooks/usePaymentProcessing';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 interface InvoicePayment {
   id: string;
@@ -327,36 +328,37 @@ export function PaymentProcessingPage() {
             </div>
 
             {/* Status Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-              >
-                <option value="All">All Status</option>
-                <option value="Pending Payment">Pending Payment</option>
-                <option value="Completed">Completed</option>
-                <option value="Draft">Draft</option>
-              </select>
-            </div>
+            <SearchableSelect
+              value={statusFilter}
+              onChange={(val: string) => setStatusFilter(val)}
+              icon={<Filter className="w-4 h-4" />}
+              width="w-44"
+              placeholder="All Status"
+              searchPlaceholder="Search status..."
+              options={[
+                { label: 'All Status', value: 'All' },
+                { label: 'Pending Payment', value: 'Pending Payment' },
+                { label: 'Completed', value: 'Completed' },
+                { label: 'Draft', value: 'Draft' },
+              ]}
+            />
 
             {/* Vendor Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                value={vendorFilter}
-                onChange={(e) => setVendorFilter(e.target.value)}
-                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-              >
-                <option value="All">All Vendors</option>
-                {uniqueVendors.map((vendor) => (
-                  <option key={vendor} value={vendor}>
-                    {vendor}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SearchableSelect
+              value={vendorFilter}
+              onChange={(val: string) => setVendorFilter(val)}
+              icon={<Filter className="w-4 h-4" />}
+              width="w-56"
+              placeholder="All Vendors"
+              searchPlaceholder="Search vendors..."
+              options={[
+                { label: 'All Vendors', value: 'All' },
+                ...uniqueVendors.map((vendor) => ({
+                  label: vendor,
+                  value: vendor,
+                })),
+              ]}
+            />
 
             {/* Date Filter */}
             <div className="relative">

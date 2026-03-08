@@ -5,6 +5,7 @@ import { AddVendorPanel } from '../components/AddVendorPanel';
 import { PerformanceRating } from '../components/PerformanceRating';
 import { useVendors } from '@/lib/hooks/useVendors';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 export function Vendors() {
   const {
@@ -220,31 +221,34 @@ export function Vendors() {
               </div>
 
               {/* Status Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                </select>
-              </div>
+              <SearchableSelect
+                value={statusFilter}
+                onChange={(val: string) => setStatusFilter(val)}
+                icon={<Filter className="w-4 h-4" />}
+                width="w-40"
+                placeholder="All Status"
+                searchPlaceholder="Search status..."
+                options={[
+                  { label: 'All Status', value: 'all' },
+                  { label: 'Active', value: 'active' },
+                  { label: 'Inactive', value: 'inactive' },
+                  { label: 'Pending', value: 'pending' },
+                ]}
+              />
 
               {/* Category Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                >
-                  <option value="all">All Categories</option>
-                </select>
-              </div>
+              <SearchableSelect
+                value={categoryFilter}
+                onChange={(val: string) => setCategoryFilter(val)}
+                icon={<Filter className="w-4 h-4" />}
+                width="w-44"
+                placeholder="All Categories"
+                searchPlaceholder="Search category..."
+                options={[
+                  { label: 'All Categories', value: 'all' },
+                  // Note: The UI previously didn't have other options here either, waiting for backend support
+                ]}
+              />
 
               {/* Date Filter */}
               <div className="relative">

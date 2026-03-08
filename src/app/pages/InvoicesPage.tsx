@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { Search, Filter, Receipt } from 'lucide-react';
 import { useInvoices } from '@/lib/hooks/useInvoices';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 export function InvoicesPage() {
   const { invoices, isLoading, error } = useInvoices();
@@ -131,22 +132,23 @@ export function InvoicesPage() {
                 </div>
 
                 {/* Status Filter */}
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="Submitted">Submitted</option>
-                    <option value="Under Review">Under Review</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Scheduled">Scheduled</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={statusFilter}
+                  onChange={(val: string) => setStatusFilter(val)}
+                  icon={<Filter className="w-4 h-4" />}
+                  width="w-44"
+                  placeholder="All Status"
+                  searchPlaceholder="Search status..."
+                  options={[
+                    { label: 'All Status', value: 'all' },
+                    { label: 'Submitted', value: 'Submitted' },
+                    { label: 'Under Review', value: 'Under Review' },
+                    { label: 'Approved', value: 'Approved' },
+                    { label: 'Scheduled', value: 'Scheduled' },
+                    { label: 'Paid', value: 'Paid' },
+                    { label: 'Rejected', value: 'Rejected' },
+                  ]}
+                />
 
                 {/* Date Filter */}
                 <div className="relative">

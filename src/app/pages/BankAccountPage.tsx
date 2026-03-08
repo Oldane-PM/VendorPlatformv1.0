@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useBankAccounts } from '@/lib/hooks/useBankAccounts';
 import { MonthPicker } from '../components/MonthPicker';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { cardBrandLabel } from '@/lib/utils/detectCardBrand';
 import type { CardBrand } from '@/lib/utils/detectCardBrand';
 import {
@@ -396,21 +397,20 @@ export function BankAccountPage() {
       {/* Account Selector */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex items-center gap-3">
-          <label className="text-sm font-semibold text-gray-700">
+          <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
             Select Account:
           </label>
-          <select
+          <SearchableSelect
             value={selectedAccountId ?? ''}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="flex-1 max-w-md px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.bankName} - {account.accountName} ({account.currency})
-                ****{account.lastFourDigits}
-              </option>
-            ))}
-          </select>
+            onChange={(val: string) => setSelectedAccountId(val)}
+            width="w-full max-w-md"
+            placeholder="Select a bank account..."
+            searchPlaceholder="Search accounts..."
+            options={accounts.map((account) => ({
+              label: `${account.bankName} - ${account.accountName} (${account.currency}) ****${account.lastFourDigits}`,
+              value: account.id,
+            }))}
+          />
         </div>
       </div>
 
@@ -525,19 +525,20 @@ export function BankAccountPage() {
             </div>
 
             {/* Type Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white"
-              >
-                <option value="all">All Types</option>
-                <option value="Funding">Funding</option>
-                <option value="Payment">Payment</option>
-                <option value="Fee">Fee</option>
-              </select>
-            </div>
+            <SearchableSelect
+              value={typeFilter}
+              onChange={(val: string) => setTypeFilter(val)}
+              icon={<Filter className="w-4 h-4" />}
+              width="w-40"
+              placeholder="All Types"
+              searchPlaceholder="Search types..."
+              options={[
+                { label: 'All Types', value: 'all' },
+                { label: 'Funding', value: 'Funding' },
+                { label: 'Payment', value: 'Payment' },
+                { label: 'Fee', value: 'Fee' },
+              ]}
+            />
 
             {/* Date Filter */}
             <div className="relative flex items-center bg-gray-100 rounded-lg p-1">
