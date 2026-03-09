@@ -652,3 +652,98 @@ export async function listWorkOrderVendorSubmissions(
       : 0,
   }));
 }
+
+// ─── 8) getSubmissionWithFiles ──────────────────────────────────────────────
+
+export async function getSubmissionWithFiles(submissionId: string) {
+  const client = supabase() as any;
+  const { data: sub, error: subError } = await client
+    .from('work_order_vendor_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .single();
+
+  if (subError || !sub) {
+    throw new Error('Submission not found.');
+  }
+
+  const { data: files } = await client
+    .from('work_order_vendor_submission_files')
+    .select('*')
+    .eq('submission_id', submissionId)
+    .order('uploaded_at', { ascending: true });
+
+  // Map to format that UI expects for backwards compatibility
+  return {
+    ...sub,
+    total_amount: sub.quoted_amount,
+    files: files || [],
+  };
+}
+
+// ─── 9) awardSubmission ─────────────────────────────────────────────────────
+
+export async function awardSubmission({
+  submissionId,
+  workOrderId,
+  engagementId,
+}: {
+  submissionId: string;
+  workOrderId: string;
+  engagementId: string | null;
+}) {
+  const client = supabase() as any;
+
+  // 1. Fetch the submission
+  const { data: submission, error: fetchError } = await client
+    .from('work_order_vendor_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .single();
+
+  if (fetchError || !submission) {
+    throw new Error('Submission not found.');
+  }
+
+  // 2. Ensure vendor is resolved
+  if (!submission.vendor_id) {
+    throw new Error('Vendor must be resolved before awarding.');
+  }
+
+  // 3. Update submission status
+  const { error: updateError } = await client
+    .from('work_order_vendor_submissions')
+    .update({ status: 'awarded' })
+    .eq('id', submissionId);
+
+  if (updateError) {
+    throw new Error('Failed to update submission status.');
+  }
+
+  // 4. Create vendor engagement record
+  const { data: engagement, error: engError } = await client
+    .from('vendor_engagements')
+    .insert({
+      vendor_id: submission.vendor_id,
+      work_order_id: workOrderId,
+      engagement_id: engagementId,
+      awarded_submission_id: submissionId,
+      title: submission.vendor_name,
+      amount: submission.quoted_amount,
+      status: 'Active',
+    })
+    .select()
+    .single();
+
+  if (engError) {
+    throw new Error(engError.message ?? 'Failed to create vendor engagement.');
+  }
+
+  // 5. Update work order status
+  await client
+    .from('work_orders')
+    .update({ status: 'awarded' })
+    .eq('id', workOrderId);
+
+  return engagement;
+}
