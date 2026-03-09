@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { awardSubmission } from '../../../../lib/supabase/repos/vendorSubmissions.repo';
+import { awardSubmission } from '../../../../lib/supabase/repos/workOrderQuotePortalRepo';
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,15 +26,14 @@ export default async function handler(
       .json({ data: null, error: 'workOrderId is required.' });
   }
 
-  const { data, error } = await awardSubmission({
-    submissionId,
-    workOrderId,
-    engagementId: engagementId ?? null,
-  });
-
-  if (error) {
-    return res.status(500).json({ data: null, error });
+  try {
+    const data = await awardSubmission({
+      submissionId,
+      workOrderId,
+      engagementId: engagementId ?? null,
+    });
+    return res.status(201).json({ data, error: null });
+  } catch (error: any) {
+    return res.status(500).json({ data: null, error: error.message });
   }
-
-  return res.status(201).json({ data, error: null });
 }

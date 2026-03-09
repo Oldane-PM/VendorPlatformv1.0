@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { listSubmissionsByWorkOrder } from '../../../../lib/supabase/repos/vendorSubmissions.repo';
+import { listWorkOrderVendorSubmissions } from '../../../../lib/supabase/repos/workOrderQuotePortalRepo';
+import { getRequestContext } from '../../../../lib/auth/getRequestContext';
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,6 +11,13 @@ export default async function handler(
     return res.status(405).end();
   }
 
+  let ctx;
+  try {
+    ctx = await getRequestContext(req);
+  } catch (err: any) {
+    return res.status(401).json({ error: err.message || 'Unauthorized' });
+  }
+
   const { workOrderId } = req.query;
 
   if (!workOrderId || typeof workOrderId !== 'string') {
@@ -18,12 +26,18 @@ export default async function handler(
       .json({ data: null, error: 'Work order ID is required.' });
   }
 
-  const { data, error } = await listSubmissionsByWorkOrder(workOrderId);
+  try {
+    const data = await listWorkOrderVendorSubmissions(ctx.orgId, workOrderId);
 
-  if (error) {
+    // Map data to the format expected by the frontend hook
+    const mappedData = data.map((sub) => ({
+      ...sub,
+      total_amount: sub.quoted_amount, // Maintain compatibility with old UI expectations
+    }));
+
+    return res.status(200).json({ data: mappedData, error: null });
+  } catch (error: any) {
     console.error('[submissions API] Error:', error);
-    return res.status(500).json({ data: null, error });
+    return res.status(500).json({ data: null, error: error.message });
   }
-
-  return res.status(200).json({ data, error: null });
 }
