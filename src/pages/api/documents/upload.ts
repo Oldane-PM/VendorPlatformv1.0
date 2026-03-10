@@ -56,11 +56,14 @@ export default async function handler(
       }
 
       // 2. Create document record
-      // NOTE: We assume 'org_id' or 'vendor_id' isn't strictly required for this generic AI test page
-      // but if the documents table requires them, they need to be passed in. Let's insert what we can.
+      // NOTE: For this generic AI test page, we'll supply a default dev org_id
+      // to bypass the NOT NULL constraint on `documents.org_id`
+      const fallbackOrgId = '00000000-0000-0000-0000-000000000001';
+
       const { data: doc, error: docErr } = await adminDb
         .from('documents')
         .insert({
+          org_id: fallbackOrgId,
           file_name: fileName,
           storage_bucket: 'vendor_uploads',
           storage_path: storagePath,
