@@ -22,9 +22,11 @@ import {
   CreditCard,
   ReceiptText,
   Sparkles,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { authClient } from '@/lib/auth-client';
 
 interface BaseNavItem {
   id: string;
@@ -49,6 +51,24 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push('/login');
+  };
 
   const navItems: NavItem[] = [
     {
@@ -151,14 +171,31 @@ export function Layout({ children }: LayoutProps) {
               <Bell className="w-5 h-5 text-gray-600" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </button>
-            <button className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <UserIcon className="w-4 h-4 text-blue-600" />
-              </div>
-              <span className="text-sm font-medium hidden lg:block text-gray-700">
-                User
-              </span>
-            </button>
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-blue-600" />
+                </div>
+                <span className="text-sm font-medium hidden lg:block text-gray-700">
+                  User
+                </span>
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-border py-1 z-50">
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
