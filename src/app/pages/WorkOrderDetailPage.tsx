@@ -7,6 +7,7 @@ import {
   Trophy,
   AlertTriangle,
   Star,
+  Sparkles,
   FileText,
   Paperclip,
   TrendingDown,
@@ -30,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { useWorkOrderSubmissions } from '@/lib/hooks/useWorkOrderSubmissions';
+import { useWorkOrderSubmissions, VendorSubmission } from '@/lib/hooks/useWorkOrderSubmissions';
 import { useVendorSubmissionDetail } from '@/lib/hooks/useVendorSubmissionDetail';
 import { useAwardSubmission } from '@/lib/hooks/useAwardSubmission';
 import { useWorkOrderQuoteUploadLink } from '@/lib/hooks/useWorkOrderQuoteUploadLink';
@@ -173,6 +174,78 @@ function StarRating({ rating }: { rating: number | null }) {
       ))}
       <span className="text-sm font-medium text-gray-700 ml-1">{rating}</span>
     </span>
+  );
+}
+
+// ─── AI Summary Cell ────────────────────────────────────────────────────────
+function AISummaryCell({
+  submission,
+  onGenerated,
+}: {
+  submission: VendorSubmission;
+  onGenerated: () => void;
+}) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/vendor-submissions/${submission.id}/generate-summary`,
+        { method: 'POST' }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to generate summary');
+      }
+      onGenerated();
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (isGenerating) {
+    return (
+      <div className="flex flex-col items-center justify-center py-4 text-gray-400">
+        <Loader2 className="w-5 h-5 animate-spin mb-2 text-purple-500" />
+        <span className="text-xs">Analyzing documents...</span>
+      </div>
+    );
+  }
+
+  if (submission.ai_summary) {
+    return (
+      <div className="max-w-[280px]">
+        <p className="italic text-gray-600 text-sm leading-relaxed break-words whitespace-normal">{submission.ai_summary}</p>
+        <button
+          onClick={handleGenerate}
+          className="text-xs text-purple-600 hover:text-purple-700 hover:underline mt-1.5 font-medium"
+        >
+          Regenerate Summary
+        </button>
+      </div>
+    );
+  }
+
+  if (submission.file_count === 0) {
+    return <span className="text-gray-400 text-xs italic">No documents attached</span>;
+  }
+
+  return (
+    <div>
+      {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
+      <button
+        onClick={handleGenerate}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-md text-xs font-semibold transition-colors border border-purple-200"
+      >
+        <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+        Generate Summary
+      </button>
+    </div>
   );
 }
 
@@ -758,19 +831,22 @@ export function WorkOrderDetailPage() {
                     ))}
                   </TableRow>
                   {/* AI Summary */}
-                  <TableRow className="bg-purple-50/40">
+                  <TableRow className="bg-[#F9F6FF]">
                     <TableCell className="font-medium text-gray-900 align-top">
                       <div className="flex items-center gap-2">
-                        <Star className="w-4 h-4 text-purple-500 fill-purple-500" />
+                        <Sparkles className="w-4 h-4 text-purple-500" />
                         AI Summary
                       </div>
                     </TableCell>
                     {submissions.map((sub) => (
                       <TableCell
                         key={sub.id}
-                        className="text-gray-600 text-sm leading-relaxed align-top"
+                        className="text-gray-600 text-sm leading-relaxed align-top max-w-[300px]"
                       >
-                        {sub.ai_summary || '—'}
+                        <AISummaryCell
+                          submission={sub}
+                          onGenerated={refetchSubmissions}
+                        />
                       </TableCell>
                     ))}
                   </TableRow>
