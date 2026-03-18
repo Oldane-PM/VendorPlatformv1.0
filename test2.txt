@@ -1,0 +1,133 @@
+Testing getDashboardData...
+Success: {
+  summary: {
+    activeEngagements: 9,
+    pendingApprovals: 1,
+    pendingApprovalAvgDays: 21,
+    outstandingInvoices: 2,
+    totalSpendYtd: 190000
+  },
+  engagementStatusDistribution: [ { status: 'active', count: 9 } ],
+  recentActivity: [
+    {
+      id: 'f0cbf354-2983-4d3b-93fe-dc00c9bb72cd',
+      eventType: 'work_order_vendor_submission.file_uploaded',
+      entityType: 'work_order_vendor_submissions',
+      entityId: '18beea9a-e2ed-4b7f-8ffe-da1f0ca06572',
+      createdAt: '2026-03-12T20:27:34.17662+00:00',
+      description: 'Work order vendor submission file uploaded'
+    },
+    {
+      id: 'c87920ad-cce1-4311-839e-392f37b0c25c',
+      eventType: 'work_order_vendor_submission.created',
+      entityType: 'work_order_vendor_submissions',
+      entityId: '18beea9a-e2ed-4b7f-8ffe-da1f0ca06572',
+      createdAt: '2026-03-12T20:27:00.132466+00:00',
+      description: 'Work order vendor submission created'
+    },
+    {
+      id: 'e3e2c3cc-f52d-470f-b827-463dc15999b5',
+      eventType: 'work_order_upload_link.opened',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: '6b6609d1-77f5-42c2-9b78-214d3a56fe54',
+      createdAt: '2026-03-12T20:24:08.781724+00:00',
+      description: 'Work order upload link opened'
+    },
+    {
+      id: 'accb92db-4651-4cda-b1ad-eb64333a9042',
+      eventType: 'work_order_upload_link.created',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: '6b6609d1-77f5-42c2-9b78-214d3a56fe54',
+      createdAt: '2026-03-12T20:23:59.685775+00:00',
+      description: 'Work order upload link created'
+    },
+    {
+      id: '9a861747-eb08-4da0-8cd5-b7a5020016cd',
+      eventType: 'engagement_invoice_upload_link.opened',
+      entityType: 'engagement_invoice_upload_requests',
+      entityId: 'e4bcd94c-1a42-45de-a76d-cb11a0d383c1',
+      createdAt: '2026-03-12T19:18:01.720538+00:00',
+      description: 'Engagement invoice upload link opened'
+    },
+    {
+      id: '71947ef4-f1f2-4ae9-815c-ec2380672987',
+      eventType: 'engagement_invoice_upload_link.created',
+      entityType: 'engagement_invoice_upload_requests',
+      entityId: 'e4bcd94c-1a42-45de-a76d-cb11a0d383c1',
+      createdAt: '2026-03-12T19:17:50.413622+00:00',
+      description: 'Engagement invoice upload link created'
+    },
+    {
+      id: 'fe426dab-79bd-44b4-a061-8a27fec9d624',
+      eventType: 'work_order_upload_link.opened',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: 'cf070bd2-fdb4-427c-87cc-8bbfebb96014',
+      createdAt: '2026-03-12T19:16:23.770969+00:00',
+      description: 'Work order upload link opened'
+    },
+    {
+      id: '7e1edd0a-0be0-458e-b42a-51559afaa95b',
+      eventType: 'work_order_upload_link.created',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: 'cf070bd2-fdb4-427c-87cc-8bbfebb96014',
+      createdAt: '2026-03-12T19:16:09.346872+00:00',
+      description: 'Work order upload link created'
+    },
+    {
+      id: '98a5cba7-ef3f-4383-b308-067ed52cdfda',
+      eventType: 'work_order_upload_link.opened',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: 'e47a8d9d-f3f6-4ad3-a57e-2c664e9b68d7',
+      createdAt: '2026-03-12T12:29:03.586341+00:00',
+      description: 'Work order upload link opened'
+    },
+    {
+      id: 'a33ea233-fa61-48f3-ba1f-22cfb853cd89',
+      eventType: 'work_order_upload_link.created',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: 'e47a8d9d-f3f6-4ad3-a57e-2c664e9b68d7',
+      createdAt: '2026-03-12T12:28:42.042082+00:00',
+      description: 'Work order upload link created'
+    },
+    {
+      id: '5807ce69-449f-4049-a602-c37c3dad77dc',
+      eventType: 'work_order_vendor_submission.file_uploaded',
+      entityType: 'work_order_vendor_submissions',
+      entityId: 'ae416358-62b9-436a-9585-50826a525208',
+      createdAt: '2026-03-09T17:35:42.472475+00:00',
+      description: 'Work order vendor submission file uploaded'
+    },
+    {
+      id: '3742cf33-7ea8-4274-8490-6752c33e0bfd',
+      eventType: 'work_order_vendor_submission.created',
+      entityType: 'work_order_vendor_submissions',
+      entityId: 'ae416358-62b9-436a-9585-50826a525208',
+      createdAt: '2026-03-09T17:35:30.52198+00:00',
+      description: 'Work order vendor submission created'
+    },
+    {
+      id: '94be0c44-47cf-4d22-af1e-abd0a964cc53',
+      eventType: 'work_order_upload_link.opened',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: '4c3257ae-092e-40c3-98ab-02b1219455ae',
+      createdAt: '2026-03-09T17:33:56.786863+00:00',
+      description: 'Work order upload link opened'
+    },
+    {
+      id: '78371319-d632-46e3-8d42-64bd6afcebe5',
+      eventType: 'work_order_upload_link.created',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: '4c3257ae-092e-40c3-98ab-02b1219455ae',
+      createdAt: '2026-03-09T17:33:48.477543+00:00',
+      description: 'Work order upload link created'
+    },
+    {
+      id: 'c268428d-eb98-4c47-9930-748e1e707062',
+      eventType: 'work_order_upload_link.opened',
+      entityType: 'work_order_vendor_upload_requests',
+      entityId: 'd9aee474-7ffe-4668-b285-33246a9766ab',
+      createdAt: '2026-03-09T17:32:20.736001+00:00',
+      description: 'Work order upload link opened'
+    }
+  ]
+}
