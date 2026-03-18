@@ -620,6 +620,7 @@ export interface SubmissionListDto {
   status: string;
   submitted_at: string;
   file_count: number;
+  ai_summary: string | null;
 }
 
 export async function listWorkOrderVendorSubmissions(
@@ -631,7 +632,7 @@ export async function listWorkOrderVendorSubmissions(
   const { data: subs, error } = await client
     .from('work_order_vendor_submissions')
     .select(
-      'id, vendor_id, vendor_name, quoted_amount, currency, status, submitted_at, work_order_vendor_submission_files(count)'
+      'id, vendor_id, vendor_name, quoted_amount, currency, status, submitted_at, ai_summary, work_order_vendor_submission_files(count)'
     )
     .eq('org_id', orgId)
     .eq('work_order_id', workOrderId)
@@ -647,6 +648,7 @@ export async function listWorkOrderVendorSubmissions(
     currency: s.currency,
     status: s.status,
     submitted_at: s.submitted_at,
+    ai_summary: s.ai_summary ?? null,
     file_count: s.work_order_vendor_submission_files
       ? s.work_order_vendor_submission_files[0].count
       : 0,
