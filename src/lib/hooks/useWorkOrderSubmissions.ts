@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-interface VendorSubmission {
+export interface VendorSubmission {
   id: string;
   work_order_id: string;
   vendor_id: string;
