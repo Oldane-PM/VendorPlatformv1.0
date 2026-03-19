@@ -363,6 +363,51 @@ export function BankAccountPage() {
     );
   }
 
+  // Handle Export CSV
+  const handleExportCSV = () => {
+    if (!filteredTransactions || filteredTransactions.length === 0) return;
+
+    const headers = [
+      'Date', 'Transaction ID', 'Type', 'Vendor / Source', 'Amount', 
+      'Fee Amount', 'Fee Type', 'Exchange Rate', 'Balance After', 'Reconciled'
+    ];
+    
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('\"') || str.includes('\n')) {
+        return `\"${str.replace(/\"/g, '\"\"')}\"`;
+      }
+      return str;
+    };
+
+    const csvContent = [
+      headers.join(','),
+      ...filteredTransactions.map(t => [
+        escapeCsv(t.date ? new Date(t.date).toLocaleDateString() : ''),
+        escapeCsv(t.id),
+        escapeCsv(t.type),
+        escapeCsv(t.vendor || t.fundingSource || ''),
+        escapeCsv(t.amount.toFixed(2)),
+        escapeCsv(t.feeAmount.toFixed(2)),
+        escapeCsv(t.feeType || ''),
+        escapeCsv(t.exchangeRate || 1.0),
+        escapeCsv(t.balanceAfter.toFixed(2)),
+        escapeCsv(t.reconciled ? 'Yes' : 'No')
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `bank_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -549,7 +594,7 @@ export function BankAccountPage() {
             </div>
 
             {/* Export CSV */}
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium">
+            <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium">
               <Download className="w-4 h-4" />
               Export CSV
             </button>

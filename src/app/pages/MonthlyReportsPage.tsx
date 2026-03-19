@@ -97,13 +97,13 @@ export function MonthlyReportsPage() {
     window.print();
   };
 
-  /* ---- Export Excel ---- */
-  const handleExportExcel = () => {
+  /* ---- Export CSV ---- */
+  const handleExportCSV = () => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
     params.append('category', selectedCategory);
-    window.location.href = `/api/reports/export/excel?${params.toString()}`;
+    window.location.href = `/api/reports/export/csv?${params.toString()}`;
   };
 
   /* ---- Formatting helpers ---- */
@@ -212,11 +212,11 @@ export function MonthlyReportsPage() {
               Export PDF
             </button>
             <button
-              onClick={handleExportExcel}
+              onClick={handleExportCSV}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <FileDown className="w-4 h-4" />
-              Export Excel
+              Export CSV
             </button>
           </div>
         </div>

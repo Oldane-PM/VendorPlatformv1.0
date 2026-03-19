@@ -220,6 +220,53 @@ export function PaymentProcessingPage() {
     setIsDrawerOpen(false);
   };
 
+  // Handle export to CSV
+  const handleExportCSV = () => {
+    if (filteredInvoices.length === 0) {
+      alert('No data to export.');
+      return;
+    }
+
+    const headers = [
+      'Invoice #',
+      'Vendor',
+      'Engagement',
+      'Work Order',
+      'Invoice Amount',
+      'Currency',
+      'Status',
+      'Due Date',
+      'Uploaded Date',
+    ];
+
+    const csvData = filteredInvoices.map((invoice) => [
+      invoice.invoiceNumber,
+      `"${invoice.vendorName.replace(/"/g, '""')}"`,
+      `"${invoice.engagementTitle.replace(/"/g, '""')}"`,
+      `"${invoice.workorderTitle.replace(/"/g, '""')}"`,
+      invoice.invoiceAmount,
+      invoice.currency,
+      invoice.status,
+      formatDate(invoice.dueDate),
+      formatDate(invoice.uploadedDate),
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map((row) => row.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `payment_processing_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
@@ -369,9 +416,12 @@ export function PaymentProcessingPage() {
             </div>
 
             {/* Export Button */}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium"
+            >
               <Download className="w-3.5 h-3.5" />
-              Export
+              Export CSV
             </button>
           </div>
 
