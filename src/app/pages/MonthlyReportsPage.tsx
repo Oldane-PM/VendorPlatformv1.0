@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import {
   FileDown,
   ChevronDown,
-  ChevronRight,
-  AlertTriangle,
   TrendingUp,
   TrendingDown,
   FileText,
-  Lock,
   Calendar,
+  AlertCircle,
+  Share2,
+  Check,
+  RefreshCcw,
 } from 'lucide-react';
 import {
   LineChart,
@@ -25,241 +27,125 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useReports } from '@/lib/hooks/useReports';
+import { Skeleton } from '@/app/components/ui/skeleton';
 
-// Mock data types
-interface AccountBreakdown {
-  accountCode: string;
-  accountName: string;
-  engagementCount: number;
-  totalAwarded: number;
-  totalInvoiced: number;
-  paid: number;
-  outstanding: number;
-  vendors: VendorInAccount[];
-}
-
-interface VendorInAccount {
-  vendorName: string;
-  invoiceCount: number;
-  amount: number;
-}
-
-interface ActiveVendor {
-  vendorId: string;
-  vendorName: string;
-  engagements: number;
-  invoices: number;
-  totalAmount: number;
-  riskScore: number;
-  status: 'Active' | 'High Risk' | 'Pending';
-}
-
-interface AgingBucket {
-  range: string;
-  amount: number;
-  percentage: number;
-}
-
-// Mock Data
-const mockAccounts: AccountBreakdown[] = [
-  {
-    accountCode: 'IT-2100',
-    accountName: 'Cloud Infrastructure Services',
-    engagementCount: 3,
-    totalAwarded: 650000,
-    totalInvoiced: 294000,
-    paid: 294000,
-    outstanding: 0,
-    vendors: [
-      { vendorName: 'CloudTech Solutions', invoiceCount: 2, amount: 204000 },
-      { vendorName: 'Azure Partners Inc', invoiceCount: 1, amount: 90000 },
-    ],
-  },
-  {
-    accountCode: 'IT-2200',
-    accountName: 'Network Security',
-    engagementCount: 2,
-    totalAwarded: 450000,
-    totalInvoiced: 180000,
-    paid: 180000,
-    outstanding: 0,
-    vendors: [
-      { vendorName: 'SecureNet Systems', invoiceCount: 1, amount: 180000 },
-    ],
-  },
-  {
-    accountCode: 'IT-3100',
-    accountName: 'Business Intelligence & Analytics',
-    engagementCount: 1,
-    totalAwarded: 125000,
-    totalInvoiced: 125000,
-    paid: 125000,
-    outstanding: 0,
-    vendors: [
-      { vendorName: 'DataViz Analytics', invoiceCount: 1, amount: 125000 },
-    ],
-  },
-  {
-    accountCode: 'FAC-4500',
-    accountName: 'Facilities Management',
-    engagementCount: 1,
-    totalAwarded: 95000,
-    totalInvoiced: 0,
-    paid: 0,
-    outstanding: 0,
-    vendors: [],
-  },
-];
-
-const mockActiveVendors: ActiveVendor[] = [
-  {
-    vendorId: 'VEN-001',
-    vendorName: 'CloudTech Solutions',
-    engagements: 2,
-    invoices: 2,
-    totalAmount: 204000,
-    riskScore: 15,
-    status: 'Active',
-  },
-  {
-    vendorId: 'VEN-002',
-    vendorName: 'SecureNet Systems',
-    engagements: 1,
-    invoices: 1,
-    totalAmount: 180000,
-    riskScore: 22,
-    status: 'Active',
-  },
-  {
-    vendorId: 'VEN-003',
-    vendorName: 'DataViz Analytics',
-    engagements: 1,
-    invoices: 1,
-    totalAmount: 125000,
-    riskScore: 8,
-    status: 'Active',
-  },
-  {
-    vendorId: 'VEN-004',
-    vendorName: 'Azure Partners Inc',
-    engagements: 1,
-    invoices: 1,
-    totalAmount: 90000,
-    riskScore: 68,
-    status: 'High Risk',
-  },
-];
-
-const mockAgingData: AgingBucket[] = [
-  { range: '0–30 days', amount: 0, percentage: 0 },
-  { range: '31–60 days', amount: 0, percentage: 0 },
-  { range: '61–90 days', amount: 0, percentage: 0 },
-  { range: '90+ days', amount: 0, percentage: 0 },
-];
-
-// 12-month rolling trend data
-const mockTrendData = [
-  { month: 'Mar 2025', spend: 420000 },
-  { month: 'Apr 2025', spend: 385000 },
-  { month: 'May 2025', spend: 510000 },
-  { month: 'Jun 2025', spend: 475000 },
-  { month: 'Jul 2025', spend: 530000 },
-  { month: 'Aug 2025', spend: 490000 },
-  { month: 'Sep 2025', spend: 615000 },
-  { month: 'Oct 2025', spend: 580000 },
-  { month: 'Nov 2025', spend: 545000 },
-  { month: 'Dec 2025', spend: 620000 },
-  { month: 'Jan 2026', spend: 590000 },
-  { month: 'Feb 2026', spend: 599000 },
-];
-
-// Account spend comparison
-const mockAccountSpendData = [
-  { account: 'IT-2100', spend: 294000 },
-  { account: 'IT-2200', spend: 180000 },
-  { account: 'IT-3100', spend: 125000 },
-  { account: 'FAC-4500', spend: 0 },
-];
-
-// Paid vs Outstanding
-const mockPaidVsOutstanding = [
-  { name: 'Paid', value: 599000, percentage: 100 },
-  { name: 'Outstanding', value: 0, percentage: 0 },
-];
-
+/* ------------------------------------------------------------------ */
+/*  MonthlyReportsPage — matches Figma "Monthly Accounting Report"    */
+/* ------------------------------------------------------------------ */
 export function MonthlyReportsPage() {
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedMonth, setSelectedMonth] = useState('February');
-  const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
-  const [expandedAccounts, setExpandedAccounts] = useState<string[]>([]);
-  const [isMonthClosed, setIsMonthClosed] = useState(false);
+  const router = useRouter();
 
   const years = ['2024', '2025', '2026'];
   const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
   ];
 
-  const toggleAccountExpansion = (accountCode: string) => {
-    setExpandedAccounts((prev) =>
-      prev.includes(accountCode)
-        ? prev.filter((code) => code !== accountCode)
-        : [...prev, accountCode]
-    );
+  const today = new Date();
+  const currentMonth = months[today.getMonth()];
+  const currentYear = today.getFullYear().toString();
+
+  const [selectedYear, setSelectedYear] = useState(years.includes(currentYear) ? currentYear : '2026');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedCategory, setSelectedCategory] = useState<'department' | 'vendor'>('department');
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Derive start / end dates from selection
+  const { startDate, endDate } = useMemo(() => {
+    const y = parseInt(selectedYear);
+    const m = months.indexOf(selectedMonth);
+    const start = new Date(y, m, 1).toISOString();
+    const end = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
+    return { startDate: start, endDate: end };
+  }, [selectedYear, selectedMonth]);
+
+  // Read URL params initially
+  useEffect(() => {
+    if (router.isReady) {
+      const qYear = router.query.year as string;
+      const qMonth = router.query.month as string;
+      const qCategory = router.query.category as string;
+      if (qYear && years.includes(qYear)) setSelectedYear(qYear);
+      if (qMonth && months.includes(qMonth)) setSelectedMonth(qMonth);
+      if (qCategory === 'department' || qCategory === 'vendor') setSelectedCategory(qCategory);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
+
+  const filters = useMemo(() => ({
+    startDate,
+    endDate,
+    category: selectedCategory,
+  }), [startDate, endDate, selectedCategory]);
+
+  const { data, isLoading, error, refetch } = useReports(filters);
+
+  /* ---- Share Link ---- */
+  const handleShareLink = () => {
+    const url = new URL(window.location.origin + '/reports');
+    url.searchParams.set('year', selectedYear);
+    url.searchParams.set('month', selectedMonth);
+    url.searchParams.set('category', selectedCategory);
+    navigator.clipboard.writeText(url.toString());
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
-  // Calculate summary metrics
-  const totalAwarded = mockAccounts.reduce((sum, acc) => sum + acc.totalAwarded, 0);
-  const totalInvoiced = mockAccounts.reduce((sum, acc) => sum + acc.totalInvoiced, 0);
-  const totalPaid = mockAccounts.reduce((sum, acc) => sum + acc.paid, 0);
-  const outstandingPayables = mockAccounts.reduce((sum, acc) => sum + acc.outstanding, 0);
-
-  // Previous month comparison (mock)
-  const prevMonthComparison = {
-    awarded: 8.5,
-    invoiced: 12.3,
-    paid: 11.8,
-    outstanding: -100,
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatPercent = (value: number) => {
-    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
-  };
-
+  /* ---- Export PDF (browser print) ---- */
   const handleExportPDF = () => {
-    alert('PDF Export functionality would be implemented here');
+    window.print();
   };
 
+  /* ---- Export Excel ---- */
   const handleExportExcel = () => {
-    alert('Excel Export functionality would be implemented here');
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    params.append('category', selectedCategory);
+    window.location.href = `/api/reports/export/excel?${params.toString()}`;
   };
 
-  const handleCloseMonth = () => {
-    setIsMonthClosed(!isMonthClosed);
-  };
+  /* ---- Formatting helpers ---- */
+  const fmt = (amount: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: 'USD',
+      minimumFractionDigits: 0, maximumFractionDigits: 0,
+    }).format(amount);
 
+  const fmtPct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
+
+  /* ---- Derived reconciliation rows ---- */
+  const reconRows = useMemo(() => {
+    if (!data) return [];
+    const s = data.summary;
+    return [
+      { label: 'Total Engagements', count: s.totalEngagements, amount: s.totalAwardedValue },
+      { label: 'Total Invoices', count: s.totalInvoices, amount: s.totalInvoicedAmount },
+      { label: 'Paid Invoices', count: s.totalPaidInvoices, amount: s.totalPaidAmount },
+      { label: 'Partially Paid', count: 0, amount: 0 },
+      { label: 'Cancelled', count: 0, amount: 0 },
+    ];
+  }, [data]);
+
+  /* ---- Pie data ---- */
+  const pieData = useMemo(() => {
+    if (!data) return [];
+    return [
+      { name: 'Paid', value: data.summary.totalPaidAmount },
+      { name: 'Outstanding', value: data.summary.outstandingPayables },
+    ];
+  }, [data]);
+
+  /* ---- Previous-month comparison (static placeholder — replace when backend supports) ---- */
+  const prevPct = { awarded: 8.5, invoiced: 12.3, paid: 11.8, outstanding: -100 };
+
+  /* ================================================================ */
+  /*  RENDER                                                          */
+  /* ================================================================ */
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* ── Page Header ─────────────────────────────────────────── */}
       <div>
         <h1 className="text-3xl font-semibold text-gray-900">Monthly Accounting Report</h1>
         <p className="text-gray-500 mt-1">
@@ -267,532 +153,223 @@ export function MonthlyReportsPage() {
         </p>
       </div>
 
-      {/* Date Control Section - Sticky Header */}
+      {/* ── Toolbar (date + export) ──────────────────────────────── */}
       <div className="sticky top-16 z-20 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          {/* Left Side - Date Controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Year Selector */}
-            <div className="relative">
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
+        <div className="flex items-center justify-between">
+          {/* Combined month-year dropdown */}
+          <div className="relative">
+            <select
+              value={`${selectedMonth} ${selectedYear}`}
+              onChange={(e) => {
+                const parts = e.target.value.split(' ');
+                setSelectedMonth(parts[0]);
+                setSelectedYear(parts[1]);
+              }}
+              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              {[...years].reverse().map((y) =>
+                [...months].reverse().map((m) => (
+                  <option key={`${m}-${y}`} value={`${m} ${y}`}>
+                    {m} {y}
                   </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            </div>
-
-            {/* Month Selector */}
-            <div className="relative">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                {months.map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            </div>
-
-            {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('month')}
-                className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  viewMode === 'month'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Monthly View
-              </button>
-              <button
-                onClick={() => setViewMode('year')}
-                className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  viewMode === 'year'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Annual View
-              </button>
-            </div>
-
-            {/* Month Status Badge */}
-            {isMonthClosed && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg">
-                <Lock className="w-3.5 h-3.5 text-gray-600" />
-                <span className="text-xs font-semibold text-gray-700">Month Closed</span>
-              </div>
-            )}
+                ))
+              )}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
           </div>
 
-          {/* Right Side - Export & Close Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Category dropdown */}
+          <div className="relative border-l border-gray-200 ml-4 pl-4 hidden sm:block">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value as 'department' | 'vendor')}
+              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="department">By Department</option>
+              <option value="vendor">By Vendor</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 mt-4 sm:mt-0">
+            <button
+              onClick={handleShareLink}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                linkCopied
+                  ? 'text-green-700 bg-green-50 border-green-300'
+                  : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              {linkCopied ? 'Link Copied!' : 'Share Link'}
+            </button>
             <button
               onClick={handleExportPDF}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <FileDown className="w-4 h-4" />
-              <span className="hidden sm:inline">Export PDF</span>
+              Export PDF
             </button>
             <button
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <FileDown className="w-4 h-4" />
-              <span className="hidden sm:inline">Export Excel</span>
-            </button>
-            <button
-              onClick={handleCloseMonth}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                isMonthClosed
-                  ? 'text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100'
-                  : 'text-white bg-gray-700 hover:bg-gray-800'
-              }`}
-            >
-              <Lock className="w-4 h-4" />
-              <span className="hidden sm:inline">{isMonthClosed ? 'Reopen Month' : 'Close Month'}</span>
+              Export Excel
             </button>
           </div>
         </div>
       </div>
 
-      {/* Section 1: Monthly Financial Summary */}
+      {/* ── Error state ──────────────────────────────────────────── */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm">{error}</p>
+          </div>
+          <button
+            onClick={refetch}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            <RefreshCcw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── Section 1 — Financial Summary ────────────────────────── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
           Financial Summary – {selectedMonth} {selectedYear}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Awarded Value */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Total Awarded Value
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(totalAwarded)}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  {prevMonthComparison.awarded > 0 ? (
-                    <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-                  ) : (
-                    <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-                  )}
-                  <span
-                    className={`text-xs font-medium ${
-                      prevMonthComparison.awarded > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatPercent(prevMonthComparison.awarded)} vs prev month
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{mockAccounts.length} engagements</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Invoiced */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Total Invoiced
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(totalInvoiced)}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  {prevMonthComparison.invoiced > 0 ? (
-                    <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-                  ) : (
-                    <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-                  )}
-                  <span
-                    className={`text-xs font-medium ${
-                      prevMonthComparison.invoiced > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatPercent(prevMonthComparison.invoiced)} vs prev month
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">4 invoices generated</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Paid */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Paid</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(totalPaid)}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  {prevMonthComparison.paid > 0 ? (
-                    <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-                  ) : (
-                    <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-                  )}
-                  <span
-                    className={`text-xs font-medium ${
-                      prevMonthComparison.paid > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatPercent(prevMonthComparison.paid)} vs prev month
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">3 invoices paid</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Outstanding Payables */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Outstanding Payables
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {formatCurrency(outstandingPayables)}
-                </p>
-                <div className="flex items-center gap-1 mt-2">
-                  {prevMonthComparison.outstanding < 0 ? (
-                    <TrendingDown className="w-3.5 h-3.5 text-green-600" />
-                  ) : (
-                    <TrendingUp className="w-3.5 h-3.5 text-red-600" />
-                  )}
-                  <span
-                    className={`text-xs font-medium ${
-                      prevMonthComparison.outstanding < 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatPercent(prevMonthComparison.outstanding)} vs prev month
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">0 unpaid invoices</p>
-              </div>
-            </div>
-          </div>
+          <MetricCard
+            title="Total Awarded Value"
+            value={data?.summary.totalAwardedValue ?? null}
+            pctChange={prevPct.awarded}
+            subtitle={`${data?.summary.totalEngagements ?? 0} engagements`}
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Total Invoiced"
+            value={data?.summary.totalInvoicedAmount ?? null}
+            pctChange={prevPct.invoiced}
+            subtitle={`${data?.summary.totalInvoices ?? 0} invoices generated`}
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Total Paid"
+            value={data?.summary.totalPaidAmount ?? null}
+            pctChange={prevPct.paid}
+            subtitle={`${data?.summary.totalPaidInvoices ?? 0} invoices paid`}
+            isLoading={isLoading}
+          />
+          <MetricCard
+            title="Outstanding Payables"
+            value={data?.summary.outstandingPayables ?? null}
+            pctChange={prevPct.outstanding}
+            invertColor
+            subtitle="0 unpaid invoices"
+            isLoading={isLoading}
+          />
         </div>
       </div>
 
-      {/* Section 2: Account Breakdown Table */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-          Account Breakdown – {selectedMonth}, {selectedYear}
-        </h2>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Account Code
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Account Name
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    # Engagements
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Total Awarded
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Total Invoiced
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Paid
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Outstanding
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {mockAccounts.map((account) => {
-                  const isExpanded = expandedAccounts.includes(account.accountCode);
-                  return (
-                    <>
-                      {/* Main Account Row */}
-                      <tr
-                        key={account.accountCode}
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => toggleAccountExpansion(account.accountCode)}
-                      >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                          <div className="flex items-center gap-2">
-                            {account.vendors.length > 0 && (
-                              <>
-                                {isExpanded ? (
-                                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                                )}
-                              </>
-                            )}
-                            {account.accountCode}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{account.accountName}</td>
-                        <td className="px-6 py-4 text-sm text-right text-gray-700">
-                          {account.engagementCount}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                          {formatCurrency(account.totalAwarded)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                          {formatCurrency(account.totalInvoiced)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right text-green-700 font-medium">
-                          {formatCurrency(account.paid)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right text-red-700 font-medium">
-                          {formatCurrency(account.outstanding)}
-                        </td>
-                      </tr>
-
-                      {/* Expanded Vendor Sub-rows */}
-                      {isExpanded &&
-                        account.vendors.map((vendor, idx) => (
-                          <tr key={`${account.accountCode}-${idx}`} className="bg-gray-50">
-                            <td className="px-6 py-3 text-sm text-gray-500"></td>
-                            <td className="px-6 py-3 text-sm text-gray-700 pl-12">
-                              <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                                {vendor.vendorName}
-                              </div>
-                            </td>
-                            <td className="px-6 py-3 text-sm text-right text-gray-600">
-                              {vendor.invoiceCount} invoice{vendor.invoiceCount !== 1 ? 's' : ''}
-                            </td>
-                            <td className="px-6 py-3 text-sm text-right text-gray-700"></td>
-                            <td className="px-6 py-3 text-sm text-right text-gray-700">
-                              {formatCurrency(vendor.amount)}
-                            </td>
-                            <td className="px-6 py-3 text-sm text-right text-gray-700"></td>
-                            <td className="px-6 py-3 text-sm text-right text-gray-700"></td>
-                          </tr>
-                        ))}
-                    </>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-300">
-                <tr>
-                  <td colSpan={3} className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    Total
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right font-bold text-gray-900">
-                    {formatCurrency(totalAwarded)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right font-bold text-gray-900">
-                    {formatCurrency(totalInvoiced)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right font-bold text-green-700">
-                    {formatCurrency(totalPaid)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-right font-bold text-red-700">
-                    {formatCurrency(outstandingPayables)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 3: Active Vendors This Month */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-          Active Vendors – {selectedMonth}
-        </h2>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Vendor
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Engagements
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Invoices
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Total Amount
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Risk Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {mockActiveVendors.map((vendor) => (
-                  <tr key={vendor.vendorId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {vendor.vendorName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right text-gray-700">
-                      {vendor.engagements}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right text-gray-700">{vendor.invoices}</td>
-                    <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                      {formatCurrency(vendor.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right">
-                      <span
-                        className={`inline-flex items-center gap-1 ${
-                          vendor.riskScore > 50
-                            ? 'text-red-700 font-semibold'
-                            : vendor.riskScore > 30
-                            ? 'text-yellow-700'
-                            : 'text-green-700'
-                        }`}
-                      >
-                        {vendor.riskScore > 50 && <AlertTriangle className="w-3.5 h-3.5" />}
-                        {vendor.riskScore}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          vendor.status === 'High Risk'
-                            ? 'bg-red-50 text-red-700 border border-red-200'
-                            : vendor.status === 'Active'
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-                        }`}
-                      >
-                        {vendor.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 4: Monthly Trend Visualization */}
+      {/* ── Section 2 — Financial Trends ─────────────────────────── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
           Financial Trends
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Line Chart: Monthly Spend (12 Month Rolling) */}
+          {/* Line Chart – Monthly Spend Trend */}
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">
               Monthly Spend Trend (12 Month Rolling)
             </h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={mockTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  stroke="#9ca3af"
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  stroke="#9ca3af"
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                />
-                <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="spend"
-                  stroke="#1e40af"
-                  strokeWidth={2}
-                  dot={{ fill: '#1e40af', r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Skeleton className="w-full h-[280px]" />
+            ) : data?.trends && data.trends.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={data.trends} onClick={(e) => e?.activeLabel && alert(`Drill down into ${e.activeLabel} spend trend`)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} stroke="#9ca3af" />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    stroke="#9ca3af"
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => fmt(value)}
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Line type="monotone" dataKey="spend" stroke="#1e40af" strokeWidth={2} dot={{ fill: '#1e40af', r: 3 }} activeDot={{ r: 5 }} cursor="pointer" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart />
+            )}
           </div>
 
-          {/* Bar Chart: Account Spend Comparison */}
+          {/* Bar Chart – Account Spend Comparison */}
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">
               Account Spend Comparison – {selectedMonth}
             </h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={mockAccountSpendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="account"
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  stroke="#9ca3af"
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  stroke="#9ca3af"
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                />
-                <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                />
-                <Bar dataKey="spend" fill="#4b5563" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Skeleton className="w-full h-[280px]" />
+            ) : data?.categoryBreakdown && data.categoryBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={data.categoryBreakdown.slice(0, 8)} onClick={(e) => e?.activePayload?.[0]?.payload?.name && alert(`Drill down into component: ${e.activePayload[0].payload.name}`)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} stroke="#9ca3af" />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    stroke="#9ca3af"
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => fmt(value)}
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="spend" fill="#4b5563" radius={[4, 4, 0, 0]} cursor="pointer" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart />
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Pie Chart: Paid vs Outstanding */}
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mt-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Payment Status Distribution</h3>
+      {/* ── Section 3 — Payment Status Distribution (Donut) ──────── */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Payment Status Distribution</h3>
+        {isLoading ? (
+          <Skeleton className="w-full h-[300px]" />
+        ) : pieData.some((d) => d.value > 0) ? (
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={mockPaidVsOutstanding}
+                  data={pieData}
                   cx="50%"
                   cy="50%"
                   innerRadius={80}
                   outerRadius={120}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percentage }) => `${name}: ${percentage}%`}
+                  label={({ name, percent }) =>
+                    percent > 0 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
+                  }
                 >
                   <Cell fill="#10b981" />
                   <Cell fill="#ef4444" />
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
+                  formatter={(value: number) => fmt(value)}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
                 />
                 <Legend
                   verticalAlign="bottom"
@@ -802,57 +379,12 @@ export function MonthlyReportsPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        ) : (
+          <EmptyChart />
+        )}
       </div>
 
-      {/* Section 5: Invoice Status Aging Report */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-          Invoice Aging Report
-        </h2>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Aging Bucket
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Distribution
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {mockAgingData.map((bucket, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{bucket.range}</td>
-                  <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                    {formatCurrency(bucket.amount)}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-blue-600 h-full rounded-full"
-                          style={{ width: `${bucket.percentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-xs font-medium text-gray-600 min-w-[40px] text-right">
-                        {bucket.percentage}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Section 6: Reconciliation Summary */}
+      {/* ── Section 4 — Reconciliation Summary ───────────────────── */}
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
           Reconciliation Summary
@@ -873,46 +405,104 @@ export function MonthlyReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">Total Engagements</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-700">
-                  {mockAccounts.length}
-                </td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                  {formatCurrency(totalAwarded)}
-                </td>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-8 ml-auto" /></td>
+                    <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : reconRows.length > 0 ? (
+                reconRows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className={`px-6 py-4 text-sm font-medium ${
+                      row.label === 'Paid Invoices' ? 'text-green-700' :
+                      row.label === 'Total Engagements' || row.label === 'Total Invoices'
+                        ? 'text-blue-700' : 'text-gray-900'
+                    }`}>
+                      {row.label}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right text-gray-700">{row.count}</td>
+                    <td className={`px-6 py-4 text-sm text-right font-medium ${
+                      row.label === 'Paid Invoices' ? 'text-green-700' : 'text-gray-900'
+                    }`}>
+                      {fmt(row.amount)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-500">
+                    No data available for selected filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>      {/* ── Section 5 — Detailed Invoice Report ──────────────────── */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 mt-8">
+          Detailed Invoice Report
+        </h2>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
+          <table className="w-full min-w-[800px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Invoice / Vendor</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Engagement</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
               </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">Total Invoices</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-700">4</td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                  {formatCurrency(totalInvoiced)}
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">Paid Invoices</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-700">3</td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-green-700">
-                  {formatCurrency(totalPaid)}
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">Partially Paid</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-700">0</td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">$0</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">Cancelled</td>
-                <td className="px-6 py-4 text-sm text-right text-gray-700">0</td>
-                <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">$0</td>
-              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {isLoading ? (
+                 Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><Skeleton className="h-4 w-32 mb-1" /><Skeleton className="h-3 w-24" /></td>
+                    <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-24 ml-auto" /></td>
+                    <td className="px-6 py-4"><Skeleton className="h-6 w-16" /></td>
+                  </tr>
+                ))
+              ) : data?.detailedTable && data.detailedTable.length > 0 ? (
+                data.detailedTable.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => alert(`Drill down into invoice: ${row.invoiceNumber}`)}>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-blue-600 hover:underline">{row.invoiceNumber || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{row.vendorName}</div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{row.engagementTitle}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{row.date ? new Date(row.date).toLocaleDateString() : 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">{fmt(row.totalAmount)}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        row.status.toLowerCase() === 'paid' ? 'bg-green-100 text-green-800' :
+                        row.status.toLowerCase() === 'draft' ? 'bg-gray-100 text-gray-800' :
+                        row.status.toLowerCase() === 'approved' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
+                    No detailed data found for the selected month.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Audit Footer */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+      {/* ── Audit Footer ─────────────────────────────────────────── */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-8">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
@@ -920,10 +510,64 @@ export function MonthlyReportsPage() {
           </div>
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            <span>Audit Reference ID: RPT-{selectedYear}-{selectedMonth.substring(0, 3).toUpperCase()}-001</span>
+            <span>
+              Audit Reference ID: RPT-{selectedYear}-{selectedMonth.substring(0, 3).toUpperCase()}-001
+            </span>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Sub-components                                                     */
+/* ================================================================== */
+function MetricCard({
+  title, value, pctChange, subtitle, isLoading, invertColor = false,
+}: {
+  title: string;
+  value: number | null;
+  pctChange: number;
+  subtitle: string;
+  isLoading: boolean;
+  invertColor?: boolean;
+}) {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: 'USD',
+      minimumFractionDigits: 0, maximumFractionDigits: 0,
+    }).format(n);
+
+  const isPositive = invertColor ? pctChange < 0 : pctChange > 0;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</p>
+      {isLoading ? (
+        <Skeleton className="h-8 w-1/2 mt-2 mb-1" />
+      ) : (
+        <p className="text-2xl font-bold text-gray-900 mt-2">{fmt(value || 0)}</p>
+      )}
+      <div className="flex items-center gap-1 mt-2">
+        {isPositive ? (
+          <TrendingUp className="w-3.5 h-3.5 text-green-600" />
+        ) : (
+          <TrendingDown className="w-3.5 h-3.5 text-red-600" />
+        )}
+        <span className={`text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+          {pctChange > 0 ? '+' : ''}{pctChange.toFixed(1)}% vs prev month
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  );
+}
+
+function EmptyChart() {
+  return (
+    <div className="flex items-center justify-center h-[280px] bg-gray-50 rounded border border-dashed border-gray-200">
+      <p className="text-sm text-gray-500">No data available for selected filters.</p>
     </div>
   );
 }
