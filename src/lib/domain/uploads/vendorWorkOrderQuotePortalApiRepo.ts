@@ -83,4 +83,24 @@ export const vendorWorkOrderQuotePortalApiRepo = {
     }
     return response.json();
   },
+
+  async confirmSubmission(
+    requestId: string,
+    token: string,
+    submissionId: string
+  ): Promise<{ success: boolean; vendorId: string }> {
+    const response = await fetch(
+      `/api/vendor-portal/work-order/${requestId}/confirm?t=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to confirm submission');
+    }
+    return response.json();
+  },
 };
