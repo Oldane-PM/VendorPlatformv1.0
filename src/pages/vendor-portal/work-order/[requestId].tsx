@@ -12,10 +12,12 @@ import {
   Upload,
   CheckCircle,
   X,
-  CreditCard,
-  Building,
+  Sparkles,
+  Download,
+  Save,
 } from 'lucide-react';
 import { CreateSubmissionPayload } from '@/lib/supabase/repos/workOrderQuotePortalRepo';
+import { ExtractedDocumentData, ExtractedLineItem } from '@/lib/server/services/aiDocumentExtractionService';
 
 export default function VendorWorkOrderPortalPage() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function VendorWorkOrderPortalPage() {
     submitVendorInfo,
     uploadFiles,
     confirmSubmission,
+    extractDocument,
   } = useWorkOrderQuoteUploadPortal(requestId as string, token as string);
 
   useEffect(() => {
@@ -41,7 +44,6 @@ export default function VendorWorkOrderPortalPage() {
     }
   }, [isReady, requestId, token, loadContext]);
 
-  // Form State
   const [formData, setFormData] = useState<CreateSubmissionPayload>({
     vendorName: '',
     vendorEmail: '',
@@ -53,82 +55,65 @@ export default function VendorWorkOrderPortalPage() {
     message: '',
   });
 
-  const [submittingInfo, setSubmittingInfo] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [extractedData, setExtractedData] = useState<ExtractedDocumentData | null>(null);
 
-  // File Drag & Drop State
-  const [dragActive, setDragActive] = useState(false);
-
-  // Pre-fill vendor info if available from context
+  // Auto-submit vendor info as draft to prepare the session
   useEffect(() => {
-    if (context?.vendor && !formData.vendorName) {
-      setFormData((prev) => ({
-        ...prev,
-        vendorName: context.vendor?.name || '',
-        vendorEmail: context.vendor?.email || '',
-        vendorPhone: context.vendor?.phone || '',
-        taxId: context.vendor?.taxId || '',
-        vendorCode: context.vendor?.vendorCode || '',
-      }));
-    }
-  }, [context]);
+    if (!context || autoSubmitted || submissionId) return;
+    const payload: CreateSubmissionPayload = {
+      vendorName: context.vendor?.name || 'Vendor',
+      vendorEmail: context.vendor?.email || '',
+      vendorPhone: context.vendor?.phone || '',
+      taxId: context.vendor?.taxId || '',
+      vendorCode: context.vendor?.vendorCode || '',
+      currency: 'JMD',
+      quotedAmount: undefined,
+      message: '',
+    };
+    setFormData(payload);
+    setAutoSubmitted(true);
+    submitVendorInfo(payload).catch(() => {});
+  }, [context, autoSubmitted, submissionId]);
+
+  // ─── Loading / Error ──────────────────────────────────────────────────
 
   if (!isReady || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-        <h1 className="text-xl font-semibold text-gray-900">
-          Loading Security Check...
-        </h1>
-        <p className="text-sm text-gray-500 mt-2">
-          Verifying your secure link, please wait.
-        </p>
+        <h1 className="text-xl font-semibold text-gray-900">Loading Security Check...</h1>
+        <p className="text-sm text-gray-500 mt-2">Verifying your secure link, please wait.</p>
       </div>
     );
   }
 
-  if (error || !context) {
+  if ((error && !context) || !context) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 max-w-md w-full text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Link Invalid or Expired
-          </h1>
-          <p className="text-gray-600 mb-6">
-            {error || 'The secure link you clicked is no longer valid.'}
-          </p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Link Invalid or Expired</h1>
+          <p className="text-gray-600 mb-6">{error || 'The secure link you clicked is no longer valid.'}</p>
           <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-500 border border-gray-100">
-            Please contact your Oldane representative to request a new secure
-            upload link.
+            Please contact your Oldane representative to request a new secure upload link.
           </div>
         </div>
       </div>
     );
   }
 
-  const handleInfoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmittingInfo(true);
-    try {
-      await submitVendorInfo(formData);
-    } catch (err) {
-      // Error is handled in the hook
-    } finally {
-      setSubmittingInfo(false);
-    }
-  };
+  // ─── Handlers ─────────────────────────────────────────────────────────
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -136,46 +121,24 @@ export default function VendorWorkOrderPortalPage() {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(Array.from(e.dataTransfer.files));
+      addFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      handleFiles(Array.from(e.target.files));
+      addFiles(Array.from(e.target.files));
     }
   };
 
-  const handleFiles = (files: File[]) => {
-    // Check against allowed types
-    const allowedDocTypes = context.allowedDocTypes;
-
-    // In a real app we would map mime type to doc type, but we can default to 'supporting' initially
-    // Since we need to know what doc type they mapped it to, we'll let them select it later or default it
-    const newUploads = files.map((file) => {
-      // Very basic type mapping, a proper implementation would have a UI dropdown for each file
-      let inferredDocType = 'supporting';
-      if (
-        file.name.toLowerCase().includes('invoice') &&
-        allowedDocTypes.includes('invoice')
-      ) {
-        inferredDocType = 'invoice';
-      } else if (
-        file.name.toLowerCase().includes('quote') &&
-        allowedDocTypes.includes('quote')
-      ) {
-        inferredDocType = 'quote';
-      }
-
-      return {
-        id: Math.random().toString(36).substring(2, 9),
-        file,
-        doc_type: inferredDocType,
-        progress: 0,
-        status: 'pending' as const,
-      };
-    });
-
+  const addFiles = (files: File[]) => {
+    const newUploads = files.map((file) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      doc_type: 'quote',
+      progress: 0,
+      status: 'pending' as const,
+    }));
     setUploads((prev) => [...prev, ...newUploads]);
   };
 
@@ -183,27 +146,47 @@ export default function VendorWorkOrderPortalPage() {
     setUploads((prev) => prev.filter((u) => u.id !== id));
   };
 
-  const updateDocType = (id: string, newType: string) => {
-    setUploads((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, doc_type: newType } : u))
-    );
-  };
-
-  const startUploadProcess = async () => {
-    setUploadingFiles(true);
+  // Upload files to storage, then run AI extraction on the first completed file
+  const handleAIExtract = async () => {
+    if (!submissionId) return;
+    setProcessing(true);
     try {
-      await uploadFiles(
-        uploads.filter((u) => u.status === 'pending' || u.status === 'error')
-      );
+      // 1. Upload all pending files
+      const pendingFiles = uploads.filter((u) => u.status === 'pending' || u.status === 'error');
+      if (pendingFiles.length > 0) {
+        await uploadFiles(pendingFiles);
+      }
+
+      // 2. Wait a tick for state to settle, then find the first completed file
+      // We need to read the latest uploads so we use a callback
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setUploads((currentUploads) => {
+            const completedFile = currentUploads.find((u) => u.status === 'completed' && u.uploadFileId);
+            if (completedFile && completedFile.uploadFileId) {
+              // Trigger extraction (async, outside setState)
+              extractDocument(completedFile.uploadFileId)
+                .then((data) => {
+                  setExtractedData(data);
+                  if (data.paymentTerms.totalAmount) {
+                    setFormData((prev) => ({ ...prev, quotedAmount: data.paymentTerms.totalAmount }));
+                  }
+                })
+                .catch((err) => console.error('Extraction failed:', err))
+                .finally(() => setProcessing(false));
+            } else {
+              setProcessing(false);
+            }
+            return currentUploads; // don't mutate
+          });
+          resolve();
+        }, 500);
+      });
     } catch (err) {
-      // Error handled partially in hook
-    } finally {
-      setUploadingFiles(false);
+      console.error(err);
+      setProcessing(false);
     }
   };
-
-  const allCompleted =
-    uploads.length > 0 && uploads.every((u) => u.status === 'completed');
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -217,472 +200,477 @@ export default function VendorWorkOrderPortalPage() {
     }
   };
 
+  const updateExtractedLineItem = (index: number, field: keyof ExtractedLineItem, value: string) => {
+    if (!extractedData) return;
+    const updatedItems = [...extractedData.lineItems];
+    if (field === 'description') {
+      updatedItems[index] = { ...updatedItems[index], description: value };
+    } else {
+      updatedItems[index] = { ...updatedItems[index], [field]: Number(value) || 0 };
+    }
+    setExtractedData({ ...extractedData, lineItems: updatedItems });
+  };
+
+  const exportCSV = () => {
+    if (!extractedData) return;
+    let csv = 'Section,Field,Value\n';
+    csv += `Vendor Information,Vendor Name,"${extractedData.vendorInfo.vendorName}"\n`;
+    csv += `Vendor Information,Contact Person,"${extractedData.vendorInfo.contactPerson}"\n`;
+    csv += `Vendor Information,Email,"${extractedData.vendorInfo.email}"\n`;
+    csv += `Vendor Information,Phone,"${extractedData.vendorInfo.phone}"\n`;
+    csv += `Vendor Information,Address,"${extractedData.vendorInfo.address}"\n`;
+    csv += '\nItem Description,Quantity,Unit Price,Total\n';
+    for (const item of extractedData.lineItems) {
+      csv += `"${item.description}",${item.quantity},${item.unitPrice},${item.total}\n`;
+    }
+    csv += `\nPayment Terms,${extractedData.paymentTerms.paymentTerms}\n`;
+    csv += `Total Amount,${extractedData.paymentTerms.totalAmount}\n`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `extraction-${extractedData.fileName}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: formData.currency || 'USD' }).format(val);
+
+  const pendingFiles = uploads.filter((u) => u.status === 'pending');
+  const hasFiles = uploads.length > 0;
+
+  // ─── Success Screen ───────────────────────────────────────────────────
+
+  if (isConfirmed) {
+    return (
+      <>
+        <Head><title>Upload Complete | Oldane</title></Head>
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-10 rounded-2xl shadow-sm border border-gray-200 max-w-md w-full text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Submission Complete!</h3>
+            <p className="text-gray-600 mb-8 max-w-sm mx-auto">
+              Your documents have been successfully submitted for review. The procurement team will be notified.
+            </p>
+            <button type="button" onClick={() => window.close()}
+              className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+              Close Window
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ─── Main Portal Page ─────────────────────────────────────────────────
+
   return (
     <>
-      <Head>
-        <title>Secure Document Upload | Oldane</title>
-      </Head>
+      <Head><title>Secure Document Upload | Oldane</title></Head>
+      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl w-full mx-auto space-y-6">
 
-      <div className="min-h-screen bg-gray-50 flex flex-col py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl w-full mx-auto space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-sm mb-4">
-              OP
-            </div>
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              Secure Document Upload
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Submit your quote and related documents securely.
-            </p>
+            <div className="mx-auto h-12 w-12 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-sm mb-4">OP</div>
+            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Secure Document Upload</h2>
+            <p className="mt-2 text-sm text-gray-500">Submit your quotation and related documents securely.</p>
           </div>
 
-          <div className="bg-white px-6 py-8 sm:p-10 shadow-sm border border-gray-200 rounded-2xl overflow-hidden">
-            {/* Context Notice */}
-            <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 text-sm text-blue-800">
-              <Building className="w-5 h-5 flex-shrink-0 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-semibold mb-1">Upload Request Details</p>
-                {context.workOrderTitle && (
-                  <p>
-                    <span className="text-blue-600/70">Work Order:</span>{' '}
-                    {context.workOrderNumber
-                      ? `${context.workOrderNumber} - `
-                      : ''}
-                    {context.workOrderTitle}
-                  </p>
-                )}
-                <p className="mt-1">
-                  <span className="text-blue-600/70">Required Documents:</span>{' '}
-                  {context.allowedDocTypes.join(', ')}
-                </p>
+          {/* Work Order Information */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-1 h-5 bg-blue-600 rounded-full inline-block"></span>
+                Work Order Information
+              </h3>
+            </div>
+            <div className="px-6 py-4">
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Work Order Number</td>
+                    <td className="py-3 text-gray-900">{context.workOrderNumber || 'N/A'}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Title</td>
+                    <td className="py-3 text-gray-900">{context.workOrderTitle || 'N/A'}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Required Documents</td>
+                    <td className="py-3 text-gray-900 capitalize">{context.allowedDocTypes.join(', ')}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Link Expires</td>
+                    <td className="py-3 text-gray-900">{new Date(context.expiresAt).toLocaleDateString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Vendor Information */}
+          {context.vendor && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-indigo-600 rounded-full inline-block"></span>
+                  Vendor Information
+                </h3>
+              </div>
+              <div className="px-6 py-4">
+                <table className="w-full text-sm">
+                  <tbody>
+                    <tr className="border-b border-gray-50">
+                      <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Vendor Name</td>
+                      <td className="py-3 text-gray-900">{context.vendor.name}</td>
+                    </tr>
+                    {context.vendor.email && (
+                      <tr className="border-b border-gray-50">
+                        <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Email</td>
+                        <td className="py-3 text-gray-900">{context.vendor.email}</td>
+                      </tr>
+                    )}
+                    {context.vendor.phone && (
+                      <tr className="border-b border-gray-50">
+                        <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Phone</td>
+                        <td className="py-3 text-gray-900">{context.vendor.phone}</td>
+                      </tr>
+                    )}
+                    {context.vendor.taxId && (
+                      <tr className="border-b border-gray-50">
+                        <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Tax ID</td>
+                        <td className="py-3 text-gray-900">{context.vendor.taxId}</td>
+                      </tr>
+                    )}
+                    {context.vendor.vendorCode && (
+                      <tr>
+                        <td className="py-3 pr-4 font-medium text-gray-500 w-1/3">Vendor Code</td>
+                        <td className="py-3 text-gray-900">{context.vendor.vendorCode}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
+          )}
 
-            {/* Step 1: Submission Form */}
-            {!submissionId ? (
-              <form onSubmit={handleInfoSubmit} className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2">
-                    Vendor Information
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Please provide your details before uploading documents.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Company / Vendor Name{' '}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        readOnly={!!context.vendor}
-                        value={formData.vendorName}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            vendorName: e.target.value,
-                          })
-                        }
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Contact Email
-                      </label>
-                      <input
-                        type="email"
-                        readOnly={!!context.vendor}
-                        value={formData.vendorEmail}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            vendorEmail: e.target.value,
-                          })
-                        }
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Contact Phone
-                      </label>
-                      <input
-                        type="tel"
-                        readOnly={!!context.vendor}
-                        value={formData.vendorPhone}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            vendorPhone: e.target.value,
-                          })
-                        }
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Tax ID (TRN / EIN)
-                      </label>
-                      <input
-                        type="text"
-                        readOnly={!!context.vendor}
-                        value={formData.taxId}
-                        onChange={(e) =>
-                          setFormData({ ...formData, taxId: e.target.value })
-                        }
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Vendor Code (if known)
-                      </label>
-                      <input
-                        type="text"
-                        readOnly={!!context.vendor}
-                        value={formData.vendorCode}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            vendorCode: e.target.value,
-                          })
-                        }
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">
-                    Quote Details
-                  </h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Currency
-                      </label>
-                      <select
-                        value={formData.currency}
-                        onChange={(e) =>
-                          setFormData({ ...formData, currency: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                      >
-                        <option value="JMD">JMD - Jamaican Dollar</option>
-                        <option value="USD">USD - US Dollar</option>
-                        <option value="GBP">GBP - British Pound</option>
-                        <option value="EUR">EUR - Euro</option>
-                        <option value="CAD">CAD - Canadian Dollar</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Quoted Amount (Optional)
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <CreditCard className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.quotedAmount || ''}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              quotedAmount: e.target.value
-                                ? parseFloat(e.target.value)
-                                : undefined,
-                            })
-                          }
-                          className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Message / Notes (Optional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={formData.message}
-                      onChange={(e) =>
-                        setFormData({ ...formData, message: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={submittingInfo || !formData.vendorName.trim()}
-                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-                  >
-                    {submittingInfo ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Continue to File Upload'
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : isConfirmed ? (
-              /* Step 4: Success */
-              <div className="text-center py-8">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Upload Complete!
-                </h3>
-                <p className="text-gray-600 mb-8 max-w-sm mx-auto">
-                  Your vendor information and documents have been successfully
-                  submitted for review.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => window.close()}
-                  className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                >
-                  Close Window
-                </button>
-              </div>
-            ) : allCompleted ? (
-              /* Step 3: Confirmation */
-              <div className="space-y-6">
-                <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Review & Confirm
-                  </h3>
-                  <p className="text-gray-600">
-                    Please review your details and uploads before final submission.
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-2 mb-2">Vendor Details</h4>
-                    <p className="text-sm text-gray-700"><strong>Name:</strong> {formData.vendorName}</p>
-                    <p className="text-sm text-gray-700"><strong>Email:</strong> {formData.vendorEmail || 'N/A'}</p>
-                    <p className="text-sm text-gray-700"><strong>Currency:</strong> {formData.currency}</p>
-                    {formData.quotedAmount && (
-                      <p className="text-sm text-gray-700"><strong>Quote Amount:</strong> ${formData.quotedAmount}</p>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-2 mb-2">Uploaded Documents ({uploads.length})</h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      {uploads.map((u) => (
-                        <li key={u.id} className="flex justify-between">
-                          <span className="truncate pr-4">{u.file.name}</span>
-                          <span className="text-gray-500 font-medium">{u.doc_type}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
-                    {error}
-                  </div>
-                )}
-
-                <div className="pt-4 flex gap-3">
-                  <button
-                    onClick={handleConfirm}
-                    disabled={confirming}
-                    className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {confirming ? (
-                      <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Confirming...</>
-                    ) : (
-                      'Confirm Submission'
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Step 2: File Upload */
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1 border-b border-gray-100 pb-2">
-                    Upload Documents
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Please upload the required documents. Maximum{' '}
-                    {context.maxFiles} files,{' '}
-                    {Math.round(context.maxTotalBytes / 1024 / 1024)}MB total.
-                  </p>
-                </div>
-
-                {/* Dropzone */}
+          {/* ═══ Upload Documents ═══ */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-1 h-5 bg-emerald-600 rounded-full inline-block"></span>
+                Upload Documents
+              </h3>
+            </div>
+            <div className="px-6 py-6 space-y-5">
+              {/* Dropzone — always visible until extraction is done */}
+              {!extractedData && (
                 <div
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${
                     dragActive
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
                   }`}
                 >
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-semibold text-blue-600 cursor-pointer hover:underline relative">
-                      Click to upload
+                  <p className="text-base font-semibold text-gray-700 mb-1">Drag and drop files here</p>
+                  <p className="text-sm text-gray-500 mb-3">
+                    or{' '}
+                    <span className="text-blue-600 cursor-pointer hover:underline relative">
+                      click to browse your computer
                       <input
                         type="file"
                         multiple
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         onChange={handleFileInput}
                       />
-                    </span>{' '}
-                    or drag and drop
+                    </span>
                   </p>
-                  <p className="text-xs text-gray-500">
-                    PDF, DOCX, XLSX, JPEG, PNG
+                  <p className="text-xs text-gray-400">
+                    Supported formats: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG up to 10MB
                   </p>
                 </div>
+              )}
 
-                {/* File List */}
-                {uploads.length > 0 && (
-                  <div className="space-y-3 pt-4">
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      Selected Files ({uploads.length})
+              {/* File List + AI Extract button */}
+              {hasFiles && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      Files Ready for Processing ({uploads.length})
                     </h4>
-                    <ul className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden bg-white">
-                      {uploads.map((file) => (
-                        <li
-                          key={file.id}
-                          className="p-4 flex items-center gap-4"
-                        >
-                          <FileText
-                            className={`w-8 h-8 flex-shrink-0 ${
-                              file.status === 'completed'
-                                ? 'text-green-500'
-                                : 'text-blue-500'
-                            }`}
-                          />
-
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {file.file.name}
-                            </p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-xs text-gray-500">
-                                {(file.file.size / 1024 / 1024).toFixed(2)} MB
-                              </span>
-
-                              {file.status === 'pending' ||
-                              file.status === 'error' ? (
-                                <select
-                                  value={file.doc_type}
-                                  onChange={(e) =>
-                                    updateDocType(file.id, e.target.value)
-                                  }
-                                  className="text-xs border border-gray-300 rounded p-1 max-w-[120px]"
-                                >
-                                  {context.allowedDocTypes.map((type) => (
-                                    <option key={type} value={type}>
-                                      {type}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                                  {file.doc_type}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Status logic */}
-                            {file.status === 'uploading' && (
-                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                                <div
-                                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                                  style={{ width: `${file.progress}%` }}
-                                ></div>
-                              </div>
-                            )}
-                            {file.status === 'error' && (
-                              <p className="text-xs text-red-600 mt-1">
-                                {file.errorMessage}
-                              </p>
-                            )}
-                          </div>
-
-                          {(file.status === 'pending' ||
-                            file.status === 'error') && (
-                            <button
-                              type="button"
-                              onClick={() => removeFile(file.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
-                          )}
-
-                          {file.status === 'completed' && (
-                            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="pt-6">
-                  <button
-                    onClick={startUploadProcess}
-                    disabled={
-                      uploads.length === 0 ||
-                      uploadingFiles ||
-                      uploads.every((u) => u.status === 'completed')
-                    }
-                    className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-                  >
-                    {uploadingFiles ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Uploading Files...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-5 h-5" />
-                        Submit Documents
-                      </>
+                    {/* AI Extract Data button */}
+                    {!extractedData && submissionId && (
+                      <button
+                        onClick={handleAIExtract}
+                        disabled={processing || pendingFiles.length === 0}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm font-bold rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all disabled:opacity-50 shadow-sm"
+                      >
+                        {processing ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                        ) : (
+                          <><Sparkles className="w-4 h-4" /> AI Extract Data</>
+                        )}
+                      </button>
                     )}
+                  </div>
+
+                  {uploads.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                    >
+                      <FileText className={`w-6 h-6 flex-shrink-0 ${
+                        file.status === 'completed' ? 'text-green-500' : 'text-blue-500'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{file.file.name}</p>
+                        <p className="text-xs text-gray-500">{(file.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        {file.status === 'uploading' && (
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                              style={{ width: `${file.progress}%` }}></div>
+                          </div>
+                        )}
+                        {file.status === 'error' && (
+                          <p className="text-xs text-red-600 mt-1">{file.errorMessage}</p>
+                        )}
+                      </div>
+                      {file.status === 'completed' && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                      {(file.status === 'pending' || file.status === 'error') && !processing && (
+                        <button type="button" onClick={() => removeFile(file.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Waiting for session */}
+              {hasFiles && !submissionId && (
+                <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  Preparing upload session...
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ═══ Extracted Data ═══ */}
+          {extractedData && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-lg font-bold text-gray-900">Extracted Data</h3>
+                  <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                    {uploads.filter((u) => u.status === 'completed').length} Document{uploads.filter((u) => u.status === 'completed').length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleConfirm} disabled={confirming}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+                    {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {confirming ? 'Saving...' : 'Save to Database'}
+                  </button>
+                  <button onClick={exportCSV}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                    <Download className="w-4 h-4" /> Export CSV
                   </button>
                 </div>
               </div>
-            )}
-          </div>
 
+              {/* File banner */}
+              <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{extractedData.fileName}</p>
+                  <p className="text-xs text-gray-500">
+                    Extracted on {new Date(extractedData.extractedAt).toLocaleDateString()},{' '}
+                    {new Date(extractedData.extractedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {/* Vendor Information */}
+                <div className="px-6 py-5">
+                  <h4 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-blue-600 rounded-full inline-block"></span>
+                    Vendor Information
+                  </h4>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {([
+                        ['Vendor Name', 'vendorName'],
+                        ['Vendor ID', 'vendorId'],
+                        ['Contact Person', 'contactPerson'],
+                        ['Email', 'email'],
+                        ['Phone', 'phone'],
+                        ['Address', 'address'],
+                      ] as const).map(([label, key]) => (
+                        <tr key={key} className="border-b border-gray-50">
+                          <td className="py-2.5 pr-4 font-medium text-gray-500 w-1/3">{label}</td>
+                          <td className="py-2.5">
+                            <input type="text"
+                              value={(extractedData.vendorInfo as any)[key] || ''}
+                              onChange={(e) => setExtractedData({
+                                ...extractedData,
+                                vendorInfo: { ...extractedData.vendorInfo, [key]: e.target.value },
+                              })}
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Line Items */}
+                {extractedData.lineItems.length > 0 && (
+                  <div className="px-6 py-5">
+                    <h4 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-blue-600 rounded-full inline-block"></span>
+                      Line Items
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 text-left">
+                            <th className="px-3 py-2.5 font-semibold text-gray-600">Item Description</th>
+                            <th className="px-3 py-2.5 font-semibold text-gray-600">Quantity</th>
+                            <th className="px-3 py-2.5 font-semibold text-gray-600">Unit Price</th>
+                            <th className="px-3 py-2.5 font-semibold text-gray-600">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {extractedData.lineItems.map((item, idx) => (
+                            <tr key={idx} className="border-b border-gray-50">
+                              <td className="px-3 py-2">
+                                <input type="text" value={item.description}
+                                  onChange={(e) => updateExtractedLineItem(idx, 'description', e.target.value)}
+                                  className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500" />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input type="number" value={item.quantity}
+                                  onChange={(e) => updateExtractedLineItem(idx, 'quantity', e.target.value)}
+                                  className="w-20 px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500" />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input type="number" step="0.01" value={item.unitPrice}
+                                  onChange={(e) => updateExtractedLineItem(idx, 'unitPrice', e.target.value)}
+                                  className="w-28 px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500" />
+                              </td>
+                              <td className="px-3 py-2 font-semibold text-gray-900">{formatCurrency(item.total)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Terms */}
+                <div className="px-6 py-5">
+                  <h4 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-indigo-600 rounded-full inline-block"></span>
+                    Payment Terms
+                  </h4>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {([
+                        ['Payment Terms', 'paymentTerms'],
+                        ['Delivery Date', 'deliveryDate'],
+                        ['Warranty', 'warranty'],
+                      ] as const).map(([label, key]) => (
+                        <tr key={key} className="border-b border-gray-50">
+                          <td className="py-2.5 pr-4 font-medium text-gray-500 w-1/3">{label}</td>
+                          <td className="py-2.5">
+                            <input type="text"
+                              value={(extractedData.paymentTerms as any)[key] || ''}
+                              onChange={(e) => setExtractedData({
+                                ...extractedData,
+                                paymentTerms: { ...extractedData.paymentTerms, [key]: e.target.value },
+                              })}
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-b border-gray-50">
+                        <td className="py-2.5 pr-4 font-medium text-gray-500 w-1/3">Subtotal</td>
+                        <td className="py-2.5 font-medium">{formatCurrency(extractedData.paymentTerms.subtotal)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-50">
+                        <td className="py-2.5 pr-4 font-medium text-gray-500 w-1/3">
+                          Tax {extractedData.paymentTerms.taxRate ? `(${extractedData.paymentTerms.taxRate})` : ''}
+                        </td>
+                        <td className="py-2.5 font-medium">{formatCurrency(extractedData.paymentTerms.tax)}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 pr-4 font-bold text-gray-700 w-1/3">Total Amount</td>
+                        <td className="py-2.5 font-bold text-gray-900">{formatCurrency(extractedData.paymentTerms.totalAmount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Contract Details */}
+                <div className="px-6 py-5">
+                  <h4 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-green-600 rounded-full inline-block"></span>
+                    Contract Details
+                  </h4>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {([
+                        ['Contract Number', 'contractNumber'],
+                        ['Contract Date', 'contractDate'],
+                        ['Valid Until', 'validUntil'],
+                        ['Approval Required', 'approvalRequired'],
+                        ['Department', 'department'],
+                      ] as const).map(([label, key]) => (
+                        <tr key={key} className="border-b border-gray-50 last:border-b-0">
+                          <td className="py-2.5 pr-4 font-medium text-gray-500 w-1/3">{label}</td>
+                          <td className="py-2.5">
+                            <input type="text"
+                              value={(extractedData.contractDetails as any)[key] || ''}
+                              onChange={(e) => setExtractedData({
+                                ...extractedData,
+                                contractDetails: { ...extractedData.contractDetails, [key]: e.target.value },
+                              })}
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error display */}
+          {error && (
+            <div className="p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">{error}</div>
+          )}
+
+          {/* Footer */}
           <div className="text-center pb-8">
-            <p className="text-xs text-gray-400">
-              Powered by Oldane Vendor Platform
-            </p>
+            <p className="text-xs text-gray-400">Powered by Oldane Vendor Platform</p>
           </div>
         </div>
       </div>
