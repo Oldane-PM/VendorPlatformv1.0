@@ -5,6 +5,7 @@ import {
   SignedUploadResult,
   FinalizeInput,
 } from '../../supabase/repos/workOrderQuotePortalRepo';
+import { ExtractedDocumentData } from '../../server/services/aiDocumentExtractionService';
 
 export const vendorWorkOrderQuotePortalApiRepo = {
   async getContext(
@@ -100,6 +101,27 @@ export const vendorWorkOrderQuotePortalApiRepo = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Failed to confirm submission');
+    }
+    return response.json();
+  },
+
+  async extractDocument(
+    requestId: string,
+    token: string,
+    submissionId: string,
+    uploadFileId: string
+  ): Promise<ExtractedDocumentData> {
+    const response = await fetch(
+      `/api/vendor-portal/work-order/${requestId}/extract?t=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId, uploadFileId }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to extract document data');
     }
     return response.json();
   },

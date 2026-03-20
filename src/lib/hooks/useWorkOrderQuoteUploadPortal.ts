@@ -4,6 +4,7 @@ import {
   PortalContextDto,
   CreateSubmissionPayload,
 } from '../supabase/repos/workOrderQuotePortalRepo';
+import { ExtractedDocumentData } from '../server/services/aiDocumentExtractionService';
 
 export interface UploadFileState {
   id: string; // temp client-side id
@@ -139,6 +140,22 @@ export function useWorkOrderQuoteUploadPortal(
     }
   };
 
+  const extractDocument = async (uploadFileId: string): Promise<ExtractedDocumentData> => {
+    if (!submissionId) throw new Error('No submission context found');
+    setError(null);
+    try {
+      return await vendorWorkOrderQuotePortalApiRepo.extractDocument(
+        requestId,
+        token,
+        submissionId,
+        uploadFileId
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to extract document');
+      throw err;
+    }
+  };
+
   return {
     context,
     submissionId,
@@ -150,5 +167,6 @@ export function useWorkOrderQuoteUploadPortal(
     submitVendorInfo,
     uploadFiles,
     confirmSubmission,
+    extractDocument,
   };
 }
