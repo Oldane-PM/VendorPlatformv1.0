@@ -32,6 +32,7 @@ export default function VendorWorkOrderPortalPage() {
     loadContext,
     submitVendorInfo,
     uploadFiles,
+    confirmSubmission,
   } = useWorkOrderQuoteUploadPortal(requestId as string, token as string);
 
   useEffect(() => {
@@ -54,10 +55,25 @@ export default function VendorWorkOrderPortalPage() {
 
   const [submittingInfo, setSubmittingInfo] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [isDone, setIsDone] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   // File Drag & Drop State
   const [dragActive, setDragActive] = useState(false);
+
+  // Pre-fill vendor info if available from context
+  useEffect(() => {
+    if (context?.vendor && !formData.vendorName) {
+      setFormData((prev) => ({
+        ...prev,
+        vendorName: context.vendor?.name || '',
+        vendorEmail: context.vendor?.email || '',
+        vendorPhone: context.vendor?.phone || '',
+        taxId: context.vendor?.taxId || '',
+        vendorCode: context.vendor?.vendorCode || '',
+      }));
+    }
+  }, [context]);
 
   if (!isReady || loading) {
     return (
@@ -179,7 +195,6 @@ export default function VendorWorkOrderPortalPage() {
       await uploadFiles(
         uploads.filter((u) => u.status === 'pending' || u.status === 'error')
       );
-      setIsDone(true);
     } catch (err) {
       // Error handled partially in hook
     } finally {
@@ -189,6 +204,18 @@ export default function VendorWorkOrderPortalPage() {
 
   const allCompleted =
     uploads.length > 0 && uploads.every((u) => u.status === 'completed');
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    try {
+      await confirmSubmission();
+      setIsConfirmed(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <>
@@ -253,6 +280,7 @@ export default function VendorWorkOrderPortalPage() {
                       <input
                         type="text"
                         required
+                        readOnly={!!context.vendor}
                         value={formData.vendorName}
                         onChange={(e) =>
                           setFormData({
@@ -260,7 +288,7 @@ export default function VendorWorkOrderPortalPage() {
                             vendorName: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                       />
                     </div>
 
@@ -270,6 +298,7 @@ export default function VendorWorkOrderPortalPage() {
                       </label>
                       <input
                         type="email"
+                        readOnly={!!context.vendor}
                         value={formData.vendorEmail}
                         onChange={(e) =>
                           setFormData({
@@ -277,7 +306,7 @@ export default function VendorWorkOrderPortalPage() {
                             vendorEmail: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                       />
                     </div>
 
@@ -287,6 +316,7 @@ export default function VendorWorkOrderPortalPage() {
                       </label>
                       <input
                         type="tel"
+                        readOnly={!!context.vendor}
                         value={formData.vendorPhone}
                         onChange={(e) =>
                           setFormData({
@@ -294,7 +324,7 @@ export default function VendorWorkOrderPortalPage() {
                             vendorPhone: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                       />
                     </div>
 
@@ -304,11 +334,12 @@ export default function VendorWorkOrderPortalPage() {
                       </label>
                       <input
                         type="text"
+                        readOnly={!!context.vendor}
                         value={formData.taxId}
                         onChange={(e) =>
                           setFormData({ ...formData, taxId: e.target.value })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                       />
                     </div>
 
@@ -318,6 +349,7 @@ export default function VendorWorkOrderPortalPage() {
                       </label>
                       <input
                         type="text"
+                        readOnly={!!context.vendor}
                         value={formData.vendorCode}
                         onChange={(e) =>
                           setFormData({
@@ -325,7 +357,7 @@ export default function VendorWorkOrderPortalPage() {
                             vendorCode: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${context.vendor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                       />
                     </div>
                   </div>
@@ -413,8 +445,8 @@ export default function VendorWorkOrderPortalPage() {
                   </button>
                 </div>
               </form>
-            ) : isDone && allCompleted ? (
-              /* Step 3: Success */
+            ) : isConfirmed ? (
+              /* Step 4: Success */
               <div className="text-center py-8">
                 <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
                   <CheckCircle className="h-8 w-8 text-green-600" />
@@ -433,6 +465,61 @@ export default function VendorWorkOrderPortalPage() {
                 >
                   Close Window
                 </button>
+              </div>
+            ) : allCompleted ? (
+              /* Step 3: Confirmation */
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Review & Confirm
+                  </h3>
+                  <p className="text-gray-600">
+                    Please review your details and uploads before final submission.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-2 mb-2">Vendor Details</h4>
+                    <p className="text-sm text-gray-700"><strong>Name:</strong> {formData.vendorName}</p>
+                    <p className="text-sm text-gray-700"><strong>Email:</strong> {formData.vendorEmail || 'N/A'}</p>
+                    <p className="text-sm text-gray-700"><strong>Currency:</strong> {formData.currency}</p>
+                    {formData.quotedAmount && (
+                      <p className="text-sm text-gray-700"><strong>Quote Amount:</strong> ${formData.quotedAmount}</p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 border-b border-gray-200 pb-2 mb-2">Uploaded Documents ({uploads.length})</h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {uploads.map((u) => (
+                        <li key={u.id} className="flex justify-between">
+                          <span className="truncate pr-4">{u.file.name}</span>
+                          <span className="text-gray-500 font-medium">{u.doc_type}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
+                    {error}
+                  </div>
+                )}
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    onClick={handleConfirm}
+                    disabled={confirming}
+                    className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {confirming ? (
+                      <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Confirming...</>
+                    ) : (
+                      'Confirm Submission'
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               /* Step 2: File Upload */

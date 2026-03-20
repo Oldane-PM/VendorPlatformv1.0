@@ -220,6 +220,13 @@ export interface PortalContextDto {
   expiresAt: string;
   maxFiles: number;
   maxTotalBytes: number;
+  vendor?: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    taxId: string | null;
+    vendorCode: string | null;
+  } | null;
 }
 
 export async function getPortalContext(
@@ -234,6 +241,12 @@ export async function getPortalContext(
     .from('work_orders')
     .select('title, work_order_number')
     .eq('id', req.work_order_id)
+    .single();
+
+  const { data: vendorData } = await client
+    .from('vendors')
+    .select('vendor_name, email, phone, tax_id, vendor_code')
+    .eq('id', req.vendor_id)
     .single();
 
   await audit(
@@ -256,6 +269,13 @@ export async function getPortalContext(
     expiresAt: req.expires_at,
     maxFiles: req.max_files,
     maxTotalBytes: req.max_total_bytes,
+    vendor: vendorData ? {
+      name: vendorData.vendor_name,
+      email: vendorData.email,
+      phone: vendorData.phone,
+      taxId: vendorData.tax_id,
+      vendorCode: vendorData.vendor_code,
+    } : null,
   };
 }
 
@@ -299,7 +319,7 @@ export async function createSubmission(
       currency: payload.currency ?? 'JMD',
       quoted_amount: payload.quotedAmount ?? null,
       message: payload.message ?? null,
-      status: 'submitted',
+      status: 'draft',
     })
     .select('id')
     .single();
@@ -636,6 +656,7 @@ export async function listWorkOrderVendorSubmissions(
     )
     .eq('org_id', orgId)
     .eq('work_order_id', workOrderId)
+    .neq('status', 'draft')
     .order('submitted_at', { ascending: false });
 
   if (error || !subs) return [];
@@ -681,6 +702,71 @@ export async function getSubmissionWithFiles(submissionId: string) {
     total_amount: sub.quoted_amount,
     files: files || [],
   };
+}
+
+// ─── 8.5) confirmSubmission ────────────────────────────────────────────────
+
+export async function confirmSubmission(
+  requestId: string,
+  rawToken: string,
+  submissionId: string
+): Promise<{ success: boolean; vendorId: string }> {
+  const req = await validateToken(requestId, rawToken);
+  const client = supabase() as any;
+
+  // Verify the submission belongs to this request
+  const { data: sub } = await client
+    .from('work_order_vendor_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .eq('upload_request_id', requestId)
+    .single();
+
+  if (!sub) {
+    throw new Error('Invalid submission ID for this request.');
+  }
+
+  // Check if any files are fully finalized
+  const { data: files } = await client
+    .from('work_order_vendor_submission_files')
+    .select('id')
+    .eq('submission_id', submissionId)
+    .eq('status', 'stored');
+
+  if (!files || files.length === 0) {
+    throw new Error('You must upload at least one document before confirming.');
+  }
+
+  // Set status to submitted
+  await client
+    .from('work_order_vendor_submissions')
+    .update({ status: 'submitted' })
+    .eq('id', submissionId);
+
+  // Note: we'll call resolveVendorForSubmission to ensure vendor relationships are fully
+  // mapped now that it's submitted.
+  if (!sub.vendor_id && req.vendor_id) {
+    await client
+      .from('work_order_vendor_submissions')
+      .update({ vendor_id: req.vendor_id })
+      .eq('id', submissionId);
+  }
+
+  const result = await resolveVendorForSubmission(
+    req.org_id,
+    submissionId,
+    'system-link'
+  );
+
+  await audit(
+    req.org_id,
+    'work_order_vendor_submission.confirmed',
+    'work_order_vendor_submissions',
+    submissionId,
+    null
+  );
+
+  return result;
 }
 
 // ─── 9) awardSubmission ─────────────────────────────────────────────────────
