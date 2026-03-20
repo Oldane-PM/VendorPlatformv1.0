@@ -1,848 +1,547 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Download,
   Calendar,
-  CheckCircle2,
-  AlertTriangle,
-  Upload,
-  Lock,
-  Unlock,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
-  FileText,
   DollarSign,
-  TrendingUp,
-  TrendingDown,
+  Upload,
   X,
+  FileCheck2,
+  AlertTriangle,
+  Download,
+  Link as LinkIcon,
+  CheckCircle2,
+  Check,
+  FileText,
+  Trash2,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 
 interface ReconTransaction {
   id: string;
   date: string;
-  transactionType:
-    | 'Invoice Payment'
-    | 'Funding'
-    | 'Bank Fee'
-    | 'FX Adjustment'
-    | 'Manual Adjustment';
-  reference: string;
-  vendor?: string;
-  amountIn: number;
-  amountOut: number;
-  category: string;
-  status: 'Pending' | 'Cleared' | 'Reconciled';
-  matched: boolean;
-  aiSuggested?: boolean;
-}
-
-interface ReconciliationPeriod {
-  month: number;
-  year: number;
-  openingBalance: number;
-  closingBalance: number;
-  status: 'Open' | 'Closed';
-  closedBy?: string;
-  closedDate?: string;
+  description: string;
+  subDescription: string;
+  statementAmount: number;
+  systemAmount: number | null;
+  matchStatus: 'Matched' | 'Unmatched' | 'Partial Match';
 }
 
 export function AccountReconciliationPage() {
-  const [selectedMonth, setSelectedMonth] = useState('2');
-  const [selectedYear, setSelectedYear] = useState('2025');
-  const [selectedAccount, setSelectedAccount] = useState('BA-001');
-  const [periodStatus, setPeriodStatus] = useState<'Open' | 'Closed'>('Open');
-  const [actualBankBalance, setActualBankBalance] = useState('450000.00');
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
-    []
-  );
+  const [viewState, setViewState] = useState<'setup' | 'reconciling'>('setup');
+  
+  // Form State
+  const [selectedPeriod, setSelectedPeriod] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('');
+  
+  // Upload State
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{name: string, size: string} | null>(null);
 
-  // Mock reconciliation data
-  const [transactions, setTransactions] = useState<ReconTransaction[]>([
+  // Bank Accounts Data
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+
+  useEffect(() => {
+    async function fetchAccounts() {
+      try {
+        const res = await fetch('/api/bank-accounts');
+        const json = await res.json();
+        if (json.accounts) {
+          setBankAccounts(json.accounts);
+        }
+      } catch (err) {
+        console.error('Failed to fetch bank accounts:', err);
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    }
+    fetchAccounts();
+  }, []);
+
+  // Mock data for Reconciling view
+  const mockTransactions: ReconTransaction[] = [
     {
-      id: 'TXN-001',
-      date: '2025-02-17',
-      transactionType: 'Invoice Payment',
-      reference: 'INV-2025-0089',
-      vendor: 'CloudTech Solutions',
-      amountIn: 0,
-      amountOut: 45000.0,
-      category: 'Vendor Payment',
-      status: 'Reconciled',
-      matched: true,
+      id: '1',
+      date: 'Feb 16, 2025',
+      description: 'Payment to CloudTech Solutions',
+      subDescription: 'Invoice Payment',
+      statementAmount: 45000.00,
+      systemAmount: 45000.00,
+      matchStatus: 'Matched'
     },
     {
-      id: 'TXN-002',
-      date: '2025-02-15',
-      transactionType: 'Funding',
-      reference: 'FUND-2025-012',
-      vendor: 'Capital Injection',
-      amountIn: 200000.0,
-      amountOut: 0,
-      category: 'Capital',
-      status: 'Reconciled',
-      matched: true,
+      id: '2',
+      date: 'Feb 14, 2025',
+      description: 'Capital Injection - Funding',
+      subDescription: 'Funding',
+      statementAmount: 200000.00,
+      systemAmount: 200000.00,
+      matchStatus: 'Matched'
     },
     {
-      id: 'TXN-003',
-      date: '2025-02-16',
-      transactionType: 'Invoice Payment',
-      reference: 'INV-2025-0091',
-      vendor: 'SecureIT Services',
-      amountIn: 0,
-      amountOut: 78000.0,
-      category: 'Vendor Payment',
-      status: 'Reconciled',
-      matched: true,
+      id: '3',
+      date: 'Feb 15, 2025',
+      description: 'Payment to SecureIT Services',
+      subDescription: 'Invoice Payment',
+      statementAmount: 78000.00,
+      systemAmount: 78000.00,
+      matchStatus: 'Matched'
     },
     {
-      id: 'TXN-004',
-      date: '2025-02-14',
-      transactionType: 'Bank Fee',
-      reference: 'FEE-2025-02',
-      vendor: 'National Commercial Bank',
-      amountIn: 0,
-      amountOut: 45.0,
-      category: 'Bank Charges',
-      status: 'Pending',
-      matched: false,
-      aiSuggested: true,
+      id: '4',
+      date: 'Feb 13, 2025',
+      description: 'Bank Service Fee - Monthly',
+      subDescription: 'Bank Fee',
+      statementAmount: 45.50,
+      systemAmount: null,
+      matchStatus: 'Unmatched'
     },
     {
-      id: 'TXN-005',
-      date: '2025-02-12',
-      transactionType: 'Invoice Payment',
-      reference: 'INV-2025-0090',
-      vendor: 'Azure Partners Inc',
-      amountIn: 0,
-      amountOut: 32000.0,
-      category: 'Vendor Payment',
-      status: 'Reconciled',
-      matched: true,
+      id: '5',
+      date: 'Feb 11, 2025',
+      description: 'Payment to Azure Partners',
+      subDescription: 'Invoice Payment',
+      statementAmount: 32000.00,
+      systemAmount: 32150.00,
+      matchStatus: 'Partial Match'
     },
     {
-      id: 'TXN-006',
-      date: '2025-02-10',
-      transactionType: 'FX Adjustment',
-      reference: 'FX-2025-008',
-      vendor: 'Currency Exchange',
-      amountIn: 0,
-      amountOut: 125.5,
-      category: 'FX Variance',
-      status: 'Pending',
-      matched: false,
+      id: '6',
+      date: 'Feb 9, 2025',
+      description: 'FX Adjustment - Currency Variance',
+      subDescription: 'FX Variance',
+      statementAmount: 125.50,
+      systemAmount: null,
+      matchStatus: 'Unmatched'
     },
     {
-      id: 'TXN-007',
-      date: '2025-02-08',
-      transactionType: 'Invoice Payment',
-      reference: 'INV-2025-0093',
-      vendor: 'Marketing Pros Agency',
-      amountIn: 0,
-      amountOut: 22000.0,
-      category: 'Vendor Payment',
-      status: 'Cleared',
-      matched: false,
-      aiSuggested: true,
+      id: '7',
+      date: 'Feb 7, 2025',
+      description: 'Payment to Marketing Pros',
+      subDescription: 'Invoice Payment',
+      statementAmount: 22000.00,
+      systemAmount: 22000.00,
+      matchStatus: 'Matched'
     },
     {
-      id: 'TXN-008',
-      date: '2025-02-05',
-      transactionType: 'Manual Adjustment',
-      reference: 'ADJ-2025-003',
-      vendor: 'Accounting Correction',
-      amountIn: 500.0,
-      amountOut: 0,
-      category: 'Manual Entry',
-      status: 'Reconciled',
-      matched: true,
-    },
-  ]);
+      id: '8',
+      date: 'Feb 4, 2025',
+      description: 'Deposit - Client Payment',
+      subDescription: 'Deposit',
+      statementAmount: 1862.73,
+      systemAmount: null,
+      matchStatus: 'Unmatched'
+    }
+  ];
 
-  // Opening balance from previous period
-  const openingBalance = 327670.5;
-
-  // Calculate totals
-  const totalFundsIn = transactions.reduce((sum, t) => sum + t.amountIn, 0);
-  const totalFundsOut = transactions.reduce((sum, t) => sum + t.amountOut, 0);
-  const expectedClosingBalance = openingBalance + totalFundsIn - totalFundsOut;
-  const actualBalance = parseFloat(actualBankBalance || '0');
-  const variance = actualBalance - expectedClosingBalance;
-  const isBalanced = Math.abs(variance) < 0.01; // Allow 1 cent variance
-  const allMatched = transactions.every((t) => t.matched);
-  const canClosePeriod = isBalanced && allMatched && periodStatus === 'Open';
-
-  // Breakdown calculations
-  const invoicePaymentsCount = transactions.filter(
-    (t) => t.transactionType === 'Invoice Payment'
-  ).length;
-  const invoicePaymentsTotal = transactions
-    .filter((t) => t.transactionType === 'Invoice Payment')
-    .reduce((sum, t) => sum + t.amountOut, 0);
-
-  const totalFees = transactions
-    .filter((t) => t.transactionType === 'Bank Fee')
-    .reduce((sum, t) => sum + t.amountOut, 0);
-
-  const fxVarianceTotal = transactions
-    .filter((t) => t.transactionType === 'FX Adjustment')
-    .reduce((sum, t) => sum + t.amountOut, 0);
-
-  const manualAdjustmentsTotal = transactions
-    .filter((t) => t.transactionType === 'Manual Adjustment')
-    .reduce((sum, t) => sum + t.amountIn - t.amountOut, 0);
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
+      minimumFractionDigits: 2
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const formatAmount = (amount: number) => {
+    return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // Get status badge class
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'Cleared':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'Reconciled':
-        return 'bg-green-100 text-green-700 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      setUploadedFile({
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+      });
     }
   };
 
-  // Handle match checkbox
-  const handleMatchToggle = (id: string) => {
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, matched: !t.matched } : t))
-    );
-  };
-
-  // Handle bulk select
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedTransactions(transactions.map((t) => t.id));
-    } else {
-      setSelectedTransactions([]);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setUploadedFile({
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+      });
     }
   };
 
-  // Handle individual select
-  const handleSelectTransaction = (id: string) => {
-    if (selectedTransactions.includes(id)) {
-      setSelectedTransactions((prev) => prev.filter((t) => t !== id));
-    } else {
-      setSelectedTransactions((prev) => [...prev, id]);
-    }
-  };
-
-  // Handle close period
-  const handleClosePeriod = () => {
-    if (!canClosePeriod) {
-      alert(
-        'Cannot close period. Please ensure all transactions are matched and balanced.'
-      );
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to close the period for ${getMonthName(
-        parseInt(selectedMonth)
-      )} ${selectedYear}? This action cannot be undone.`
-    );
-
-    if (confirmed) {
-      setPeriodStatus('Closed');
-      alert(
-        '✅ Period closed successfully! A reconciliation report has been generated.'
+  const getMatchBadge = (status: string) => {
+    if (status === 'Matched') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+          Matched
+        </span>
       );
     }
-  };
-
-  // Get month name
-  const getMonthName = (month: number) => {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
+    if (status === 'Unmatched') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+          <X className="w-3.5 h-3.5 text-red-500" />
+          Unmatched
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+        Partial Match
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-6 max-w-[1280px] mx-auto">
+    <div className="max-w-[1280px] mx-auto pb-12">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-semibold text-gray-900">
-          Account Reconciliation
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Validate and balance your accounts with complete audit trails
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-[#111827]">Bank Reconciliation</h1>
+        <p className="text-gray-500 mt-1 text-[15px]">
+          Monthly structured reconciliation workflow with automated transaction matching
         </p>
       </div>
 
-      {/* Filter & Period Control Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end justify-between">
-          {/* Left Side - Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
-            {/* Month / Year Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                Period
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="1">January</option>
-                  <option value="2">February</option>
-                  <option value="3">March</option>
-                  <option value="4">April</option>
-                  <option value="5">May</option>
-                  <option value="6">June</option>
-                  <option value="7">July</option>
-                  <option value="8">August</option>
-                  <option value="9">September</option>
-                  <option value="10">October</option>
-                  <option value="11">November</option>
-                  <option value="12">December</option>
-                </select>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="2023">2023</option>
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Bank Account Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                Bank Account
-              </label>
-              <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
-                className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-w-[240px]"
-              >
-                <option value="all">All Accounts</option>
-                <option value="BA-001">Operations Account (****4582)</option>
-                <option value="BA-002">Payroll Account (****7293)</option>
-                <option value="BA-003">Reserve Account (****1456)</option>
-              </select>
-            </div>
-
-            {/* Status Toggle */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                Period Status
-              </label>
-              <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-                <button
-                  onClick={() =>
-                    periodStatus === 'Closed' && setPeriodStatus('Open')
-                  }
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                    periodStatus === 'Open'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  disabled={periodStatus === 'Open'}
-                >
-                  <Unlock className="w-4 h-4" />
-                  Open Period
-                </button>
-                <button
-                  onClick={() =>
-                    periodStatus === 'Open' && setPeriodStatus('Closed')
-                  }
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                    periodStatus === 'Closed'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  disabled={periodStatus === 'Closed'}
-                >
-                  <Lock className="w-4 h-4" />
-                  Closed Period
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Side - Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-            >
-              <Upload className="w-4 h-4" />
-              Upload Statement
-            </button>
-            <button
-              onClick={handleClosePeriod}
-              disabled={!canClosePeriod}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Lock className="w-4 h-4" />
-              {periodStatus === 'Closed' ? 'Period Locked' : 'Lock Period'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Reconciliation Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* Card 1: Opening Balance */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-            Opening Balance
-          </p>
-          <p className="text-xl font-bold text-gray-900">
-            {formatCurrency(openingBalance)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Start of period</p>
-        </div>
-
-        {/* Card 2: Total Funds In */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
-          </div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-            Total Funds In
-          </p>
-          <p className="text-xl font-bold text-green-600">
-            {formatCurrency(totalFundsIn)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Incoming funds</p>
-        </div>
-
-        {/* Card 3: Total Funds Out */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-red-600" />
-            </div>
-          </div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-            Total Funds Out
-          </p>
-          <p className="text-xl font-bold text-red-600">
-            {formatCurrency(totalFundsOut)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Outgoing payments</p>
-        </div>
-
-        {/* Card 4: Expected Closing Balance */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-indigo-600" />
-            </div>
-          </div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-            Expected Balance
-          </p>
-          <p className="text-xl font-bold text-gray-900">
-            {formatCurrency(expectedClosingBalance)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Auto-calculated</p>
-        </div>
-
-        {/* Card 5: Actual Bank Balance */}
-        <div
-          className={`rounded-xl shadow-sm border p-5 ${
-            isBalanced
-              ? 'bg-green-50 border-green-200'
-              : variance !== 0
-                ? 'bg-red-50 border-red-200'
-                : 'bg-white border-gray-200'
-          }`}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                isBalanced
-                  ? 'bg-green-100'
-                  : variance !== 0
-                    ? 'bg-red-100'
-                    : 'bg-gray-100'
-              }`}
-            >
-              <CheckCircle2
-                className={`w-5 h-5 ${
-                  isBalanced
-                    ? 'text-green-600'
-                    : variance !== 0
-                      ? 'text-red-600'
-                      : 'text-gray-600'
-                }`}
-              />
-            </div>
-          </div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            Actual Bank Balance
-          </p>
-          <input
-            type="number"
-            step="0.01"
-            value={actualBankBalance}
-            onChange={(e) => setActualBankBalance(e.target.value)}
-            disabled={periodStatus === 'Closed'}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-lg font-bold text-gray-900 mb-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100"
-          />
-          {variance !== 0 && (
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                isBalanced
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {isBalanced ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Reconciled
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Variance: {formatCurrency(Math.abs(variance))}
-                </>
-              )}
-            </div>
-          )}
-          {isBalanced && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-100 text-green-700">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Reconciled
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Detailed Reconciliation Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Transaction Details
-              </h3>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {transactions.length} transactions •{' '}
-                {transactions.filter((t) => t.matched).length} matched
-              </p>
-            </div>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-              <Download className="w-4 h-4" />
-              Export Report
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-4 text-left">
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectedTransactions.length === transactions.length
-                    }
-                    onChange={handleSelectAll}
-                    className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                  />
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Transaction Type
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Reference
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Vendor
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Amount In
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Amount Out
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Matched
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
-                <tr
-                  key={transaction.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedTransactions.includes(transaction.id)}
-                      onChange={() => handleSelectTransaction(transaction.id)}
-                      className="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-700">
-                      {formatDate(transaction.date)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-900">
-                        {transaction.transactionType}
-                      </span>
-                      {transaction.aiSuggested && (
-                        <Sparkles className="w-4 h-4 text-purple-500" />
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono text-blue-600">
-                      {transaction.reference}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-900">
-                      {transaction.vendor || '-'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="text-sm font-semibold text-green-600">
-                      {transaction.amountIn > 0
-                        ? formatCurrency(transaction.amountIn)
-                        : '-'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="text-sm font-semibold text-red-600">
-                      {transaction.amountOut > 0
-                        ? formatCurrency(transaction.amountOut)
-                        : '-'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-700">
-                      {transaction.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
-                        transaction.status
-                      )}`}
-                    >
-                      {transaction.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <input
-                      type="checkbox"
-                      checked={transaction.matched}
-                      onChange={() => handleMatchToggle(transaction.id)}
-                      disabled={periodStatus === 'Closed'}
-                      className="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500 disabled:opacity-50"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Reconciliation Breakdown Panel */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <button
-          onClick={() => setShowBreakdown(!showBreakdown)}
-          className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-gray-900">
-            Reconciliation Breakdown
-          </h3>
-          {showBreakdown ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-
-        {showBreakdown && (
-          <div className="px-5 pb-5 border-t border-gray-200 pt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Invoice Payments */}
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">
-                  Invoice Payments
-                </p>
-                <p className="text-2xl font-bold text-blue-900 mb-1">
-                  {formatCurrency(invoicePaymentsTotal)}
-                </p>
-                <p className="text-sm text-blue-600">
-                  {invoicePaymentsCount} transaction
-                  {invoicePaymentsCount !== 1 ? 's' : ''}
-                </p>
-              </div>
-
-              {/* Total Fees */}
-              <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">
-                  Total Bank Fees
-                </p>
-                <p className="text-2xl font-bold text-amber-900 mb-1">
-                  {formatCurrency(totalFees)}
-                </p>
-                <p className="text-sm text-amber-600">Service charges</p>
-              </div>
-
-              {/* FX Variance */}
-              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider mb-2">
-                  FX Variance Total
-                </p>
-                <p className="text-2xl font-bold text-purple-900 mb-1">
-                  {formatCurrency(fxVarianceTotal)}
-                </p>
-                <p className="text-sm text-purple-600">Currency adjustments</p>
-              </div>
-
-              {/* Manual Adjustments */}
-              <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider mb-2">
-                  Manual Adjustments
-                </p>
-                <p className="text-2xl font-bold text-indigo-900 mb-1">
-                  {formatCurrency(Math.abs(manualAdjustmentsTotal))}
-                </p>
-                <p className="text-sm text-indigo-600">
-                  {manualAdjustmentsTotal >= 0 ? 'Added' : 'Deducted'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bank Statement Upload Modal */}
-      {showUploadModal && (
+      {viewState === 'setup' && (
         <>
-          <div
-            className="fixed inset-0 bg-gray-900/20 z-40 transition-opacity"
-            onClick={() => setShowUploadModal(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Upload Bank Statement
-                </h3>
-                <button
-                  onClick={() => setShowUploadModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          {/* Reconciliation Setup Card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Reconciliation Setup</h2>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8">
-                <div className="text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-gray-900 mb-2">
-                    Drop your bank statement here
-                  </p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    or click to browse
-                  </p>
-                  <input
-                    type="file"
-                    id="statement-upload"
-                    className="hidden"
-                    accept=".pdf,.csv"
-                  />
-                  <label
-                    htmlFor="statement-upload"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold cursor-pointer"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Browse Files
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* Left Column - Dropdowns */}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Period <span className="text-red-500">*</span>
                   </label>
-                  <p className="text-xs text-gray-400 mt-4">
-                    Supports PDF and CSV files
-                  </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <select
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value)}
+                      className="block w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-primary focus:border-primary appearance-none bg-white text-gray-900"
+                    >
+                      <option value="" disabled>Select Period...</option>
+                      <option value="2026-03">March 2026</option>
+                      <option value="2026-02">February 2026</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Bank Account <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <DollarSign className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <select
+                      value={selectedAccount}
+                      onChange={(e) => setSelectedAccount(e.target.value)}
+                      className="block w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-primary focus:border-primary appearance-none bg-white text-gray-900"
+                      disabled={isLoadingAccounts}
+                    >
+                      <option value="" disabled>
+                        {isLoadingAccounts ? 'Loading accounts...' : 'Select Bank Account...'}
+                      </option>
+                      {bankAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.bank_name} - {acc.account_name} - {acc.last_four_digits} ({acc.currency})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </div>
+                  </div>
+                  {(() => {
+                    const selectedAccountData = bankAccounts.find(acc => acc.id === selectedAccount);
+                    if (!selectedAccountData) return null;
+                    return (
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">
+                          Current Balance: <span className="text-gray-900 font-bold">{formatCurrency(selectedAccountData.current_balance, selectedAccountData.currency)}</span>
+                        </span>
+                        <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded">
+                          {selectedAccountData.currency}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex gap-3">
-                  <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 mb-1">
-                      AI-Powered Matching
+              {/* Right Column - File Upload */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Upload Bank Statement <span className="text-red-500">*</span>
+                </label>
+                
+                {!uploadedFile ? (
+                  <div 
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                      isDragActive ? 'border-primary bg-blue-50' : 'border-gray-200 bg-[#fbfbfb] hover:bg-gray-50'
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <Upload className="mx-auto h-8 w-8 text-gray-400 mb-3" />
+                    <p className="text-sm font-medium text-gray-900 mb-1">Drag & Drop File Here</p>
+                    <p className="text-sm text-gray-500 mb-4">or</p>
+                    
+                    <label className="cursor-pointer inline-flex items-center justify-center px-4 py-2.5 bg-[#2563eb] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload PDF / Excel / Image
+                      <input type="file" className="sr-only" onChange={handleFileSelect} accept=".pdf,.csv,.xlsx,.xls,.jpg,.jpeg,.png" />
+                    </label>
+                    
+                    <p className="text-[13px] text-gray-400 mt-4">
+                      Supported: PDF, XLSX, CSV, JPG, PNG
                     </p>
-                    <p className="text-sm text-blue-700">
-                      Our system will automatically parse transactions and
-                      suggest matches with your existing records.
-                    </p>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 bg-[#fbfbfb] relative">
+                    <button 
+                      onClick={() => setUploadedFile(null)} 
+                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-start gap-4">
+                      <div className="pt-1">
+                        <FileText className="w-6 h-6 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 break-all pr-6">{uploadedFile.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">{uploadedFile.size}</p>
+                        <div className="flex items-center gap-1.5 mt-3">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <span className="text-sm font-medium text-green-600">Upload Complete</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Separator */}
+            <hr className="my-6 border-gray-100" />
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
+              <button className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+                Save Draft
+              </button>
+              <button 
+                onClick={() => setViewState('reconciling')}
+                disabled={!uploadedFile || !selectedPeriod || !selectedAccount}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                  ${uploadedFile && selectedPeriod && selectedAccount 
+                    ? 'bg-[#2563eb] text-white hover:bg-blue-700 shadow-sm' 
+                    : 'bg-[#93c5fd] text-white cursor-not-allowed opacity-90'
+                  }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                Start Reconciliation
+              </button>
+            </div>
+          </div>
+
+          {/* Reconciliation History (only in setup view) */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Reconciliation History</h2>
+                <p className="text-sm text-gray-500 mt-1">View past reconciliation records and status</p>
+              </div>
+              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50">
+                <Download className="w-4 h-4" />
+                Export All
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-[#f8f9fa] border-b border-gray-200 text-xs text-gray-600 font-semibold uppercase">
+                  <tr>
+                    <th className="px-6 py-4">Period</th>
+                    <th className="px-6 py-4">Bank Account</th>
+                    <th className="px-6 py-4">Uploaded Statement</th>
+                    <th className="px-6 py-4">Statement Balance</th>
+                    <th className="px-6 py-4">System Balance</th>
+                    <th className="px-6 py-4">Variance</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Created By</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-gray-700 font-medium whitespace-nowrap">
+                  {/* Empty state or placeholders */}
+                  <tr>
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                      No past reconciliations found.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {viewState === 'reconciling' && (
+        <div className="space-y-6">
+          {/* Back button */}
+          <button 
+            onClick={() => setViewState('setup')}
+            className="text-sm font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-2 mb-2"
+          >
+            ← Back to Setup
+          </button>
+
+          {/* Reconciliation Summary Card */}
+          <div className="bg-[#fff9eb] border border-[#fde68a] rounded-xl p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-gray-900">Reconciliation Summary</h2>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-200 text-sm font-bold">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Pending Review
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4 mb-5">
+              {/* Stat Boxes */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex-1 min-w-[200px] shadow-sm">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">System Balance</p>
+                <p className="text-2xl font-bold text-gray-900">USD 327,670.50</p>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex-1 min-w-[200px] shadow-sm">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Statement Balance</p>
+                <p className="text-2xl font-bold text-gray-900">USD 329,578.73</p>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex-1 min-w-[200px] shadow-sm">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Difference</p>
+                <p className="text-2xl font-bold text-amber-600">USD 1,908.23</p>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex-1 min-w-[200px] shadow-sm">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Match Progress</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl font-bold text-gray-900">50%</span>
+                  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden flex-1">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: '50%' }}></div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                <span className="text-sm font-bold text-gray-700">4 Matched</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                <span className="text-sm font-bold text-gray-700">1 Partial Match</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <span className="text-sm font-bold text-gray-700">3 Unmatched</span>
+              </div>
+            </div>
           </div>
-        </>
+
+          {/* Transaction Matching Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Transaction Matching</h2>
+                <p className="text-[15px] text-gray-500 mt-0.5">
+                  8 transactions • 4 matched • 3 require attention
+                </p>
+              </div>
+              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50">
+                <Download className="w-4 h-4" />
+                Export Report
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-[#fbfbfb] border-b border-gray-200 text-xs text-gray-600 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 w-32">Date</th>
+                    <th className="px-6 py-4">Description</th>
+                    <th className="px-6 py-4 text-center">Statement Amount</th>
+                    <th className="px-6 py-4 text-center">System Amount</th>
+                    <th className="px-6 py-4 text-center">Match Status</th>
+                    <th className="px-6 py-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {mockTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-5 whitespace-nowrap text-gray-600 font-medium">
+                        {tx.date}
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="text-gray-900 font-bold mb-0.5">{tx.description}</div>
+                        <div className="text-gray-400 font-medium text-[13px]">{tx.subDescription}</div>
+                      </td>
+                      <td className="px-6 py-5 text-center font-bold text-gray-900">
+                        {formatAmount(tx.statementAmount)}
+                      </td>
+                      <td className="px-6 py-5 text-center font-bold text-gray-900">
+                        {tx.systemAmount !== null ? formatAmount(tx.systemAmount) : '—'}
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        {getMatchBadge(tx.matchStatus)}
+                      </td>
+                      <td className="px-6 py-5 text-right whitespace-nowrap">
+                        {tx.matchStatus === 'Matched' ? (
+                          <div className="flex items-center justify-end gap-1.5 text-gray-400 font-medium text-[13px]">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Matched</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2 text-[13px]">
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold transition-colors">
+                              <LinkIcon className="w-3.5 h-3.5" />
+                              Match
+                            </button>
+                            <button className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+                              <span className="text-gray-400 mb-[1px]">+</span> 
+                              Adjust
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
