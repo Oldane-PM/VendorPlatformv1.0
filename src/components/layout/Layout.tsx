@@ -72,14 +72,6 @@ export function Layout({ children }: LayoutProps) {
 
   const navItems: NavItem[] = [
     {
-      id: 'nav-ai-ocr',
-      path: '/ai-ocr',
-      label: 'AI Document Upload',
-      icon: Sparkles,
-      badge: 'AI',
-      isPrimaryAction: true,
-    },
-    {
       id: 'nav-dashboard',
       path: '/',
       label: 'Dashboard',
