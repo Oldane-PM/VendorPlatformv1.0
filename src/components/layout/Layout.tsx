@@ -122,7 +122,6 @@ export function Layout({ children }: LayoutProps) {
     { type: 'divider' },
     { id: 'nav-users', path: '/admin/users', label: 'Users', icon: Users },
     { id: 'nav-reports', path: '/reports', label: 'Reports', icon: BarChart3 },
-    { id: 'nav-admin', path: '/admin', label: 'Admin', icon: Settings },
   ];
 
   const isActive = (path: string) => {
