@@ -1,7 +1,12 @@
+# Railway reads this file (not railway.yaml). Docs:
+# https://docs.railway.com/reference/config-as-code
+#
+# Node version: set service variable NODE_VERSION=20 in the Railway dashboard
+# (Railpack/mise honors it). package.json "engines" also guides Railpack.
+#
 [build]
-# Use Dockerfile so Node 20 is guaranteed (Nixpacks was still selecting Node 18 on some builds).
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "RAILPACK"
+buildCommand = "npm run build"
 
 [deploy]
 startCommand = "npm run start"
