@@ -24,13 +24,24 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const { allowedDocTypes, expiresInHours, maxFiles, maxTotalBytes } =
-      req.body;
+    const {
+      vendorId,
+      allowedDocTypes,
+      expiresInHours,
+      maxFiles,
+      maxTotalBytes,
+    } = req.body ?? {};
+
+    if (!vendorId || typeof vendorId !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid vendorId' });
+    }
+
     const result = await createUploadLink(
       ctx.orgId,
       ctx.userId,
       workOrderId as string,
       {
+        vendorId,
         allowedDocTypes,
         expiresInHours,
         maxFiles,
