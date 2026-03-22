@@ -1,0 +1,4 @@
+# Nixpacks (Railway) — Next 16 + Supabase + ESLint 10 need Node 20+
+# https://nixpacks.com/docs/providers/node
+[variables]
+NODE_VERSION = "20"
