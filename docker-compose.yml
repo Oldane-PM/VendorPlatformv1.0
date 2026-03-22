@@ -1,0 +1,11 @@
+# Local / parity testing — same image Railway builds from Dockerfile
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    # Optional: load secrets for local docker run
+    # env_file: .env

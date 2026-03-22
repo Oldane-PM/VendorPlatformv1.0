@@ -1,12 +1,9 @@
-# Railway reads this file (not railway.yaml). Docs:
+# Railway: build from repo Dockerfile so Node 20 is guaranteed (not Railpack’s Node 18).
 # https://docs.railway.com/reference/config-as-code
 #
-# Node version: set service variable NODE_VERSION=20 in the Railway dashboard
-# (Railpack/mise honors it). package.json "engines" also guides Railpack.
-#
 [build]
-builder = "RAILPACK"
-buildCommand = "npm run build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm run start"

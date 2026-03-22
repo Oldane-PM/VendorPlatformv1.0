@@ -11,6 +11,6 @@ Run `npm run dev` to start the development server.
 ## Deploying on Railway
 
 - **Config file:** `railway.toml` (Railway does **not** use `railway.yaml`; use `railway.toml` or `railway.json` per [Config as code](https://docs.railway.com/reference/config-as-code)).
-- **Builder:** `RAILPACK` (default on Railway). The repo uses **Railpack** + `buildCommand` / `startCommand` in `railway.toml` — no Docker required.
-- **Node version:** In the Railway service, add variable **`NODE_VERSION=20`** (Next 16 and several deps need Node ≥20). `package.json` `engines.node` should match.
-- **Why `package-lock.json` is committed:** Railway runs `npm ci` in many builds; the lockfile must match `package.json`.
+- **Builder:** **`DOCKERFILE`** — the repo ships a root **`Dockerfile`** based on **`node:20-bookworm-slim`** so builds never use Node 18 (Next 16 needs **≥20.9**). Railpack alone was still resolving to Node 18 on some deploys.
+- **Local Docker:** `docker compose up --build` (see `docker-compose.yml`).
+- **Why `package-lock.json` is committed:** `npm ci` in the Dockerfile needs a lockfile in sync with `package.json`.
