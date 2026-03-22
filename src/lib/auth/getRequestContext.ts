@@ -60,6 +60,11 @@ async function resolveOrgForUser(
       '[getRequestContext] org_members lookup failed:',
       memErr.message
     );
+    if (memErr.message?.includes('invalid input syntax for type uuid')) {
+      console.error(
+        '[getRequestContext] Fix: run migration 012_org_members_user_id_text.sql — user_id must be TEXT for Better Auth ids (not uuid).'
+      );
+    }
   }
 
   if (membership?.org_id) {
