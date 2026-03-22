@@ -45,8 +45,16 @@ async function isAuthorizedEmail(email: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 // Better-Auth server instance
 // ---------------------------------------------------------------------------
+const appOrigin =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  'http://localhost:3000';
+
 export const auth = betterAuth({
   database: supabaseAdapter(),
+
+  // Canonical URL for OAuth callbacks / redirects (must be production URL on Railway, not localhost)
+  baseURL: appOrigin,
 
   advanced: {
     // Force Better-Auth to use a new cookie name ('vp') instead of 'better-auth'.
@@ -67,7 +75,7 @@ export const auth = betterAuth({
   },
 
   // -- Trusted origins ----------------------------------------------------------
-  trustedOrigins: [process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'],
+  trustedOrigins: [appOrigin],
 
   // ---------------------------------------------------------------------------
   // HOOKS — Before middleware (catches email / password & social entry points)
