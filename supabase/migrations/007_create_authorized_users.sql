@@ -19,6 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_authorized_users_email
 ALTER TABLE public.authorized_users ENABLE ROW LEVEL SECURITY;
 
 -- Service-role only (the Better-Auth server uses the service-role key)
+-- Idempotent for db push when policy already exists on remote
+DROP POLICY IF EXISTS "service_role_all" ON public.authorized_users;
+
 CREATE POLICY "service_role_all" ON public.authorized_users
   FOR ALL
   USING (true)

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.ba_user (
 
 ALTER TABLE public.ba_user ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_all" ON public.ba_user;
 CREATE POLICY "service_role_all" ON public.ba_user
   FOR ALL USING (true) WITH CHECK (true);
 
@@ -36,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_ba_session_user   ON public.ba_session (user_id);
 
 ALTER TABLE public.ba_session ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_all" ON public.ba_session;
 CREATE POLICY "service_role_all" ON public.ba_session
   FOR ALL USING (true) WITH CHECK (true);
 
@@ -60,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_ba_account_user ON public.ba_account (user_id);
 
 ALTER TABLE public.ba_account ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_all" ON public.ba_account;
 CREATE POLICY "service_role_all" ON public.ba_account
   FOR ALL USING (true) WITH CHECK (true);
 
@@ -75,5 +78,6 @@ CREATE TABLE IF NOT EXISTS public.ba_verification (
 
 ALTER TABLE public.ba_verification ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_all" ON public.ba_verification;
 CREATE POLICY "service_role_all" ON public.ba_verification
   FOR ALL USING (true) WITH CHECK (true);
