@@ -23,25 +23,36 @@ export interface RequestContext {
  * Pick a default org when org_members has no row yet (first login after Better Auth).
  * Set DEFAULT_ORG_ID in env if you have multiple organizations (use the UUID from `organizations`).
  */
-async function pickDefaultOrgId(
+async function resolveDefaultOrgId(
   supabase: ReturnType<typeof createServerClient>
-): Promise<string | null> {
+): Promise<{ orgId: string } | { reason: string }> {
   const fromEnv = process.env.DEFAULT_ORG_ID?.trim();
-  if (fromEnv) return fromEnv;
+  if (fromEnv) return { orgId: fromEnv };
 
   const { data: rows, error } = await supabase
     .from('organizations')
     .select('id')
-    .limit(2);
+    .limit(3);
 
   if (error) {
     console.error('[getRequestContext] organizations query failed:', error.message);
-    return null;
+    return {
+      reason: `organizations table query failed: ${error.message}`,
+    };
   }
-  if (rows?.length === 1) {
-    return rows[0].id as string;
+  if (!rows?.length) {
+    return {
+      reason:
+        'no rows in organizations — run migration 014_ensure_default_organization.sql (or supabase/seed.sql), or insert an organization manually.',
+    };
   }
-  return null;
+  if (rows.length > 1) {
+    return {
+      reason:
+        'multiple rows in organizations — set DEFAULT_ORG_ID in .env to the org UUID you want for new users.',
+    };
+  }
+  return { orgId: rows[0].id as string };
 }
 
 async function resolveOrgForUser(
@@ -71,12 +82,13 @@ async function resolveOrgForUser(
     return membership.org_id as string;
   }
 
-  const orgId = await pickDefaultOrgId(supabase);
-  if (!orgId) {
+  const picked = await resolveDefaultOrgId(supabase);
+  if ('reason' in picked) {
     throw new Error(
-      'No organization membership: add a row in org_members, or set DEFAULT_ORG_ID, or ensure exactly one row in organizations.'
+      `No organization membership: ${picked.reason}`
     );
   }
+  const { orgId } = picked;
 
   const { error: insErr } = await supabase.from('org_members').insert({
     org_id: orgId,
@@ -99,7 +111,8 @@ async function resolveOrgForUser(
       insErr.message
     );
     throw new Error(
-      'No organization membership: run migration 011_create_org_members.sql and ensure organizations has at least one row.'
+      `No organization membership: could not insert org_members (${insErr.message}). ` +
+        'Ensure migrations 011/012 ran, organizations has a valid org_id, and ba_user has a row for this user.'
     );
   }
 
