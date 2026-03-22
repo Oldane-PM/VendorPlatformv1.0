@@ -3,8 +3,15 @@
  *
  * Used by API routes to obtain { userId, orgId } without exposing
  * Supabase internals to the route handler.
+ *
+ * Auth order:
+ * 1. Better Auth session cookie (Google / app login via /api/auth)
+ * 2. Supabase JWT Bearer token (legacy / service clients)
+ * 3. x-user-id header (dev tooling)
  */
 import type { NextApiRequest } from 'next';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export interface RequestContext {
@@ -12,51 +19,74 @@ export interface RequestContext {
   orgId: string;
 }
 
+async function resolveOrgForUser(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string
+): Promise<string> {
+  const { data: membership, error: memErr } = await supabase
+    .from('org_members')
+    .select('org_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (memErr || !membership) {
+    console.error(
+      '[getRequestContext] org_members lookup failed:',
+      memErr?.message
+    );
+    throw new Error('No organization membership');
+  }
+
+  return membership.org_id as string;
+}
+
 export async function getRequestContext(
   req: NextApiRequest
 ): Promise<RequestContext> {
   const supabase = createServerClient();
 
-  // --- 1. Resolve user from Authorization header or cookie ---------
-  const authHeader = req.headers.authorization ?? '';
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : undefined;
-
   let userId: string | undefined;
 
-  if (token) {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-    if (error || !user) throw new Error('Unauthorized');
-    userId = user.id;
-  } else {
+  // --- 1) Better Auth (session cookie — primary for this app) ------------
+  try {
+    const headers = fromNodeHeaders(req.headers);
+    const session = await auth.api.getSession({ headers });
+    if (session?.user?.id) {
+      userId = session.user.id;
+    }
+  } catch (err) {
+    console.error('[getRequestContext] Better Auth getSession failed:', err);
+  }
+
+  // --- 2) Supabase Bearer JWT (legacy) -----------------------------------
+  if (!userId) {
+    const authHeader = req.headers.authorization ?? '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
+
+    if (token) {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token);
+      if (error || !user) throw new Error('Unauthorized');
+      userId = user.id;
+    }
+  }
+
+  // --- 3) Dev header -------------------------------------------------------
+  if (!userId) {
     const devUserId = req.headers['x-user-id'] as string | undefined;
     if (devUserId) {
       userId = devUserId;
     }
   }
 
-  // --- 2. Resolve org membership -----------------------------------
   if (userId) {
-    const { data: membership, error: memErr } = await supabase
-      .from('org_members')
-      .select('org_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
-
-    if (memErr || !membership) {
-      console.error(
-        '[getRequestContext] org_members lookup failed:',
-        memErr?.message
-      );
-      throw new Error('No organization membership');
-    }
-
-    return { userId, orgId: membership.org_id as string };
+    const orgId = await resolveOrgForUser(supabase, userId);
+    return { userId, orgId };
   }
 
   // --- 3. Dev-mode fallback: auto-resolve first org ----------------
