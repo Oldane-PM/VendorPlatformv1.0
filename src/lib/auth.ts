@@ -43,24 +43,84 @@ async function isAuthorizedEmail(email: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// Better-Auth server instance
+// Better-Auth server instance — public URL / trusted origins
 // ---------------------------------------------------------------------------
-const appOrigin =
-  process.env.BETTER_AUTH_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  'http://localhost:3000';
+/** Normalize to origin only (scheme + host + port). Strips accidental paths like /api/auth. */
+function normalizeOrigin(raw: string | undefined): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    return new URL(raw.trim()).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Single canonical base URL for OAuth redirects and cookie scope.
+ * On Railway, set BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL, or rely on RAILWAY_PUBLIC_DOMAIN.
+ * If none match the browser origin, Better Auth returns 401 on /api/auth/* (origin check).
+ */
+function resolvePublicBaseUrl(): string {
+  const candidates = [
+    process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined,
+  ];
+  for (const c of candidates) {
+    const o = normalizeOrigin(c);
+    if (o) return o;
+  }
+  return 'http://localhost:3000';
+}
+
+function collectTrustedOrigins(base: string): string[] {
+  const set = new Set<string>();
+  const add = (raw?: string) => {
+    const o = normalizeOrigin(raw);
+    if (o) set.add(o);
+  };
+  add(process.env.BETTER_AUTH_URL);
+  add(process.env.NEXT_PUBLIC_APP_URL);
+  add(base);
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  }
+  if (process.env.BETTER_AUTH_TRUSTED_ORIGINS) {
+    for (const part of process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')) {
+      add(part.trim());
+    }
+  }
+  if (set.size === 0) set.add('http://localhost:3000');
+  return [...set];
+}
+
+const publicBaseUrl = resolvePublicBaseUrl();
+const trustedOriginList = collectTrustedOrigins(publicBaseUrl);
+
+if (
+  process.env.NODE_ENV === 'production' &&
+  publicBaseUrl.includes('localhost')
+) {
+  console.warn(
+    '[auth] Production is using localhost as base URL. Set BETTER_AUTH_URL, NEXT_PUBLIC_APP_URL, or deploy on Railway with RAILWAY_PUBLIC_DOMAIN — otherwise /api/auth may return 401.'
+  );
+}
 
 export const auth = betterAuth({
   database: supabaseAdapter(),
 
-  // Canonical URL for OAuth callbacks / redirects (must be production URL on Railway, not localhost)
-  baseURL: appOrigin,
+  // Canonical URL for OAuth callbacks / redirects (must match browser origin in production)
+  baseURL: publicBaseUrl,
 
   advanced: {
     // Force Better-Auth to use a new cookie name ('vp') instead of 'better-auth'.
     // DO NOT REMOVE THIS: This completely bypasses the corrupted base64 cookie
     // stuck in the browser, permanently fixing the "Invalid Base64" 500 error.
     cookiePrefix: 'vp',
+    // Railway / reverse proxies send x-forwarded-host, x-forwarded-proto
+    trustedProxyHeaders: true,
   },
 
   // -- Base path ----------------------------------------------------------------
@@ -74,8 +134,8 @@ export const auth = betterAuth({
     },
   },
 
-  // -- Trusted origins ----------------------------------------------------------
-  trustedOrigins: [appOrigin],
+  // -- Trusted origins (must include the URL users open in the browser) ----------
+  trustedOrigins: trustedOriginList,
 
   // ---------------------------------------------------------------------------
   // HOOKS — Before middleware (catches email / password & social entry points)
