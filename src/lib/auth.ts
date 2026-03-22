@@ -45,7 +45,11 @@ async function isAuthorizedEmail(email: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 // Better-Auth server instance — public URL / trusted origins
 // ---------------------------------------------------------------------------
-/** Normalize to origin only (scheme + host + port). Strips accidental paths like /api/auth. */
+/**
+ * Normalize to origin only (scheme + host + port).
+ * `new URL(...).origin` drops paths, so BETTER_AUTH_URL may be set with or without `/api/auth`;
+ * Better Auth still appends basePath `/api/auth` internally — do not put `/api/auth` in env on purpose.
+ */
 function normalizeOrigin(raw: string | undefined): string | null {
   if (!raw?.trim()) return null;
   try {
