@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "engines": {
-    "node": "20.x",
+    "node": ">=20.19.0",
     "npm": ">=10"
   },
   "scripts": {
@@ -96,6 +96,7 @@
   "overrides": {
     "hono": "4.12.7",
     "@hono/node-server": "1.19.11",
-    "lodash": "4.17.23"
+    "lodash": "4.17.23",
+    "yaml": "^2.8.2"
   }
 }

@@ -1,5 +1,7 @@
 [build]
-builder = "nixpacks"
+# Use Dockerfile so Node 20 is guaranteed (Nixpacks was still selecting Node 18 on some builds).
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm run start"
