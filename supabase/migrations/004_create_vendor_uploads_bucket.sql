@@ -5,6 +5,9 @@ VALUES ('vendor_uploads', 'vendor_uploads', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS Policies for vendor_uploads
+-- (idempotent: re-push / remote may already have this policy)
+
+DROP POLICY IF EXISTS "Service Role Full Access" ON storage.objects;
 
 -- 1. Allow service_role full access
 CREATE POLICY "Service Role Full Access"
