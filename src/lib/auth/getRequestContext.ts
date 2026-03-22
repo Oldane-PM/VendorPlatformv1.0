@@ -19,6 +19,31 @@ export interface RequestContext {
   orgId: string;
 }
 
+/**
+ * Pick a default org when org_members has no row yet (first login after Better Auth).
+ * Set DEFAULT_ORG_ID in env if you have multiple organizations (use the UUID from `organizations`).
+ */
+async function pickDefaultOrgId(
+  supabase: ReturnType<typeof createServerClient>
+): Promise<string | null> {
+  const fromEnv = process.env.DEFAULT_ORG_ID?.trim();
+  if (fromEnv) return fromEnv;
+
+  const { data: rows, error } = await supabase
+    .from('organizations')
+    .select('id')
+    .limit(2);
+
+  if (error) {
+    console.error('[getRequestContext] organizations query failed:', error.message);
+    return null;
+  }
+  if (rows?.length === 1) {
+    return rows[0].id as string;
+  }
+  return null;
+}
+
 async function resolveOrgForUser(
   supabase: ReturnType<typeof createServerClient>,
   userId: string
@@ -30,15 +55,55 @@ async function resolveOrgForUser(
     .limit(1)
     .maybeSingle();
 
-  if (memErr || !membership) {
+  if (memErr && !memErr.message?.includes('does not exist')) {
     console.error(
       '[getRequestContext] org_members lookup failed:',
-      memErr?.message
+      memErr.message
     );
-    throw new Error('No organization membership');
   }
 
-  return membership.org_id as string;
+  if (membership?.org_id) {
+    return membership.org_id as string;
+  }
+
+  const orgId = await pickDefaultOrgId(supabase);
+  if (!orgId) {
+    throw new Error(
+      'No organization membership: add a row in org_members, or set DEFAULT_ORG_ID, or ensure exactly one row in organizations.'
+    );
+  }
+
+  const { error: insErr } = await supabase.from('org_members').insert({
+    org_id: orgId,
+    user_id: userId,
+    role: 'member',
+  });
+
+  if (insErr) {
+    if (insErr.code === '23505') {
+      const { data: again } = await supabase
+        .from('org_members')
+        .select('org_id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (again?.org_id) return again.org_id as string;
+    }
+    console.error(
+      '[getRequestContext] org_members insert failed:',
+      insErr.message
+    );
+    throw new Error(
+      'No organization membership: run migration 011_create_org_members.sql and ensure organizations has at least one row.'
+    );
+  }
+
+  console.log(
+    '[getRequestContext] Auto-linked user to org',
+    orgId,
+    '(first-time Better Auth user)'
+  );
+  return orgId;
 }
 
 export async function getRequestContext(
