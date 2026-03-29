@@ -52,3 +52,4 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       .json({ error: error.message || 'Failed to generate link' });
   }
 }
+
