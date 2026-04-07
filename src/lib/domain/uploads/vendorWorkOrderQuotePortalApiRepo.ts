@@ -89,14 +89,15 @@ export const vendorWorkOrderQuotePortalApiRepo = {
     requestId: string,
     token: string,
     submissionId: string,
-    extractedData?: ExtractedDocumentData
+    extractedData?: ExtractedDocumentData,
+    currency?: string
   ): Promise<{ success: boolean; vendorId: string }> {
     const response = await fetch(
       `/api/vendor-portal/work-order/${requestId}/confirm?t=${encodeURIComponent(token)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submissionId, extractedData }),
+        body: JSON.stringify({ submissionId, extractedData, currency }),
       }
     );
     if (!response.ok) {

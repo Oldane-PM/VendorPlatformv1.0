@@ -83,13 +83,16 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', {
+function formatCurrency(amount: number, currency: string = 'USD') {
+  const formattedAmount = new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+  
+  return `${formattedAmount} ${currency}`;
 }
 
 // ─── Sub-status badge ───────────────────────────────────────────────────────
@@ -267,11 +270,6 @@ export function WorkOrderDetailPage() {
 
   // Upload request state
   const [showRequestDocModal, setShowRequestDocModal] = useState(false);
-  const [reqDocTypes, setReqDocTypes] = useState<string[]>([
-    'invoice',
-    'quote',
-    'supporting',
-  ]);
   const [reqDocExpiry, setReqDocExpiry] = useState(72);
   const [reqVendorId, setReqVendorId] = useState('');
 
@@ -642,7 +640,7 @@ export function WorkOrderDetailPage() {
                       {/* Quote Total */}
                       <TableCell>
                         <span className="text-sm font-bold text-gray-900">
-                          {formatCurrency(sub.total_amount)}
+                          {formatCurrency(sub.total_amount, sub.currency || 'USD')}
                         </span>
                         {sub.total_amount === lowestQuote &&
                           submissions.length > 1 && (
@@ -655,7 +653,7 @@ export function WorkOrderDetailPage() {
                       {/* Taxes */}
                       <TableCell>
                         <span className="text-sm text-gray-700">
-                          {sub.taxes != null ? formatCurrency(sub.taxes) : '—'}
+                          {sub.taxes != null ? formatCurrency(sub.taxes, sub.currency || 'USD') : '—'}
                         </span>
                       </TableCell>
                       {/* Submission Date */}
@@ -739,7 +737,7 @@ export function WorkOrderDetailPage() {
                     {submissions.map((sub) => (
                       <TableCell key={sub.id}>
                         <span className="font-bold text-gray-900">
-                          {formatCurrency(sub.total_amount)}
+                          {formatCurrency(sub.total_amount, sub.currency || 'USD')}
                         </span>
                         {sub.total_amount === lowestQuote &&
                           submissions.length > 1 && (
@@ -758,7 +756,7 @@ export function WorkOrderDetailPage() {
                     </TableCell>
                     {submissions.map((sub) => (
                       <TableCell key={sub.id} className="text-gray-700">
-                        {sub.taxes != null ? formatCurrency(sub.taxes) : '—'}
+                        {sub.taxes != null ? formatCurrency(sub.taxes, sub.currency || 'USD') : '—'}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -911,7 +909,7 @@ export function WorkOrderDetailPage() {
                           {awardedSub.vendor_name}
                         </p>
                         <p className="text-sm text-gray-500 mt-0.5">
-                          Quote: {formatCurrency(awardedSub.total_amount)}
+                          Quote: {formatCurrency(awardedSub.total_amount, awardedSub.currency || 'USD')}
                         </p>
                       </div>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
@@ -941,7 +939,7 @@ export function WorkOrderDetailPage() {
                     <option value="">Select winning vendor...</option>
                     {submissions.map((sub) => (
                       <option key={sub.id} value={sub.id}>
-                        {sub.vendor_name} — {formatCurrency(sub.total_amount)}
+                        {sub.vendor_name} — {formatCurrency(sub.total_amount, sub.currency || 'USD')}
                       </option>
                     ))}
                   </select>
@@ -1091,36 +1089,6 @@ export function WorkOrderDetailPage() {
                     </select>
                   </div>
 
-                  {/* Document Types */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Requested Document Types
-                    </label>
-                    <div className="flex gap-3">
-                      {['invoice', 'quote', 'supporting'].map((t) => (
-                        <label
-                          key={t}
-                          className="inline-flex items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={reqDocTypes.includes(t)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setReqDocTypes((prev) => [...prev, t]);
-                              } else {
-                                setReqDocTypes((prev) =>
-                                  prev.filter((x) => x !== t)
-                                );
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="capitalize">{t}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
 
                   {/* Expiry */}
                   <div>
@@ -1206,7 +1174,7 @@ export function WorkOrderDetailPage() {
                     if (!workOrder || !reqVendorId) return;
                     const result = await createLink(workOrder.id, {
                       vendorId: reqVendorId,
-                      allowedDocTypes: reqDocTypes,
+                      allowedDocTypes: ['quote'],
                       expiresInHours: reqDocExpiry,
                     });
                     if (result?.data?.portalUrl) {

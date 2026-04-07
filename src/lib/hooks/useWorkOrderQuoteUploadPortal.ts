@@ -125,7 +125,7 @@ export function useWorkOrderQuoteUploadPortal(
     }
   };
 
-  const confirmSubmission = async (extractedData?: ExtractedDocumentData) => {
+  const confirmSubmission = async (extractedData?: ExtractedDocumentData, currency?: string) => {
     if (!submissionId) throw new Error('No submission context found');
     setError(null);
     try {
@@ -133,7 +133,8 @@ export function useWorkOrderQuoteUploadPortal(
         requestId,
         token,
         submissionId,
-        extractedData
+        extractedData,
+        currency
       );
     } catch (err: any) {
       setError(err.message || 'Failed to confirm submission');

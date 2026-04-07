@@ -19,13 +19,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ error: 'Missing token' });
   }
 
-  const { submissionId, extractedData } = req.body;
+  const { submissionId, extractedData, currency } = req.body;
   if (!submissionId) {
     return res.status(400).json({ error: 'Missing submission ID' });
   }
 
   try {
-    const result = await confirmSubmission(requestId, t, submissionId, extractedData);
+    const result = await confirmSubmission(requestId, t, submissionId, extractedData, currency);
     return res.status(200).json(result);
   } catch (error: any) {
     console.error('[portal-confirm] Error:', error);

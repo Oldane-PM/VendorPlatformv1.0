@@ -725,7 +725,8 @@ export async function confirmSubmission(
   requestId: string,
   rawToken: string,
   submissionId: string,
-  extractedData?: ExtractedDocumentData
+  extractedData?: ExtractedDocumentData,
+  currency?: string
 ): Promise<{ success: boolean; vendorId: string }> {
   const req = await validateToken(requestId, rawToken);
   const client = supabase() as any;
@@ -755,6 +756,10 @@ export async function confirmSubmission(
 
   // Set status to submitted and update with extracted data if available
   const updatePayload: any = { status: 'submitted' };
+  
+  if (currency) {
+    updatePayload.currency = currency;
+  }
   
   if (extractedData) {
     if (extractedData.paymentTerms?.totalAmount !== undefined) {

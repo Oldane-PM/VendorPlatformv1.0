@@ -7,6 +7,7 @@ export interface VendorSubmission {
   vendor_name: string;
   submitted_at: string;
   total_amount: number;
+  currency: string;
   notes: string | null;
   status: string;
   quote_number: string | null;

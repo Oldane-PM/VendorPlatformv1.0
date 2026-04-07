@@ -191,7 +191,7 @@ export default function VendorWorkOrderPortalPage() {
   const handleConfirm = async () => {
     setConfirming(true);
     try {
-      await confirmSubmission(extractedData || undefined);
+      await confirmSubmission(extractedData || undefined, formData.currency);
       setIsConfirmed(true);
     } catch (err) {
       console.error(err);
@@ -234,8 +234,15 @@ export default function VendorWorkOrderPortalPage() {
     URL.revokeObjectURL(url);
   };
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: formData.currency || 'USD' }).format(val);
+  const formatCurrency = (val: number) => {
+    const currency = formData.currency || 'USD';
+    const formatted = new Intl.NumberFormat('en-US', { 
+      style: 'currency', 
+      currency,
+      currencyDisplay: 'narrowSymbol'
+    }).format(val);
+    return `${formatted} ${currency}`;
+  };
 
   const pendingFiles = uploads.filter((u) => u.status === 'pending');
   const hasFiles = uploads.length > 0;
@@ -621,7 +628,17 @@ export default function VendorWorkOrderPortalPage() {
                       </tr>
                       <tr>
                         <td className="py-2.5 pr-4 font-bold text-gray-700 w-1/3">Total Amount</td>
-                        <td className="py-2.5 font-bold text-gray-900">{formatCurrency(extractedData.paymentTerms.totalAmount)}</td>
+                        <td className="py-2.5 font-bold text-gray-900 flex items-center gap-2 border-none">
+                          <span className="w-24 overflow-hidden text-ellipsis inline-block leading-tight">{formatCurrency(extractedData.paymentTerms.totalAmount)}</span>
+                          <select
+                            value={formData.currency}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                            className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 font-normal outline-none bg-white"
+                          >
+                            <option value="JMD">JMD</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
