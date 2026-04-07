@@ -14,8 +14,18 @@ import {
   X,
   CreditCard,
   Building,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { CreateInvoiceSubmissionPayload } from '@/lib/supabase/repos/engagementInvoicePortalRepo';
+import Decimal from 'decimal.js';
+
+interface InvoiceLineItem {
+  id: string;
+  description: string;
+  amount: string;
+  taxPercentage: string;
+}
 
 export default function VendorEngagementInvoicePortalPage() {
   const router = useRouter();
@@ -55,6 +65,60 @@ export default function VendorEngagementInvoicePortalPage() {
   const [submittingInfo, setSubmittingInfo] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [isDone, setIsDone] = useState(false);
+
+  // Line Items State
+  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
+
+  useEffect(() => {
+    if (lineItems.length === 0) return;
+
+    let subtotal = new Decimal(0);
+    let taxTotal = new Decimal(0);
+
+    lineItems.forEach((item) => {
+      const amount = new Decimal(item.amount || 0);
+      const taxPercentage = new Decimal(item.taxPercentage || 0);
+
+      const tax = amount.times(taxPercentage).dividedBy(100);
+
+      subtotal = subtotal.plus(amount);
+      taxTotal = taxTotal.plus(tax);
+    });
+
+    const total = subtotal.plus(taxTotal);
+
+    setFormData((prev) => ({
+      ...prev,
+      subtotal: subtotal.toDecimalPlaces(2).toNumber(),
+      taxTotal: taxTotal.toDecimalPlaces(2).toNumber(),
+      total: total.toDecimalPlaces(2).toNumber(),
+    }));
+  }, [lineItems]);
+
+  const addLineItem = () => {
+    setLineItems([
+      ...lineItems,
+      { id: Math.random().toString(36).substring(2, 9), description: '', amount: '', taxPercentage: '' },
+    ]);
+  };
+
+  const removeLineItem = (id: string) => {
+    setLineItems(lineItems.filter((item) => item.id !== id));
+  };
+
+  const updateLineItem = (id: string, field: keyof InvoiceLineItem, value: string) => {
+    setLineItems(
+      lineItems.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined) return '';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: formData.currency || 'USD',
+    }).format(amount);
+  };
 
   // File Drag & Drop State
   const [dragActive, setDragActive] = useState(false);
@@ -295,46 +359,84 @@ export default function VendorEngagementInvoicePortalPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Total Amount (Optional)
+                  <div className="mb-5">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Line Items (Optional)
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <CreditCard className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.total || ''}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              total: e.target.value
-                                ? parseFloat(e.target.value)
-                                : undefined,
-                            })
-                          }
-                          className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0.00"
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={addLineItem}
+                        className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-2 py-1 rounded-md transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Add Line Item
+                      </button>
                     </div>
+                    {lineItems.length > 0 && (
+                      <div className="space-y-3 mb-4">
+                        {lineItems.map((item) => (
+                          <div key={item.id} className="flex flex-wrap sm:flex-nowrap gap-2 items-end bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div className="flex-1 min-w-[150px]">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={item.description}
+                                onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Item description"
+                              />
+                            </div>
+                            <div className="w-24 flex-shrink-0">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.amount}
+                                onChange={(e) => updateLineItem(item.id, 'amount', e.target.value)}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <div className="w-20 flex-shrink-0">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Tax %</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.taxPercentage}
+                                onChange={(e) => updateLineItem(item.id, 'taxPercentage', e.target.value)}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="0"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeLineItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1.5 mb-0.5 rounded-md hover:bg-red-50 transition-colors flex-shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Subtotal (Optional)
+                        Subtotal {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <CreditCard className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.subtotal || ''}
+                          type={lineItems.length > 0 ? "text" : "number"}
+                          step={lineItems.length > 0 ? undefined : "0.01"}
+                          min={lineItems.length > 0 ? undefined : "0"}
+                          value={lineItems.length > 0 && formData.subtotal !== undefined ? formatCurrency(formData.subtotal) : (formData.subtotal || '')}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -343,7 +445,62 @@ export default function VendorEngagementInvoicePortalPage() {
                                 : undefined,
                             })
                           }
-                          className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          readOnly={lineItems.length > 0}
+                          className={`w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${lineItems.length > 0 ? 'bg-gray-100 text-gray-500 font-medium' : ''}`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Total Tax {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <CreditCard className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <input
+                          type={lineItems.length > 0 ? "text" : "number"}
+                          step={lineItems.length > 0 ? undefined : "0.01"}
+                          min={lineItems.length > 0 ? undefined : "0"}
+                          value={lineItems.length > 0 && formData.taxTotal !== undefined ? formatCurrency(formData.taxTotal) : (formData.taxTotal || '')}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              taxTotal: e.target.value
+                                ? parseFloat(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          readOnly={lineItems.length > 0}
+                          className={`w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${lineItems.length > 0 ? 'bg-gray-100 text-gray-500 font-medium' : ''}`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Net Total Amount {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <CreditCard className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <input
+                          type={lineItems.length > 0 ? "text" : "number"}
+                          step={lineItems.length > 0 ? undefined : "0.01"}
+                          min={lineItems.length > 0 ? undefined : "0"}
+                          value={lineItems.length > 0 && formData.total !== undefined ? formatCurrency(formData.total) : (formData.total || '')}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              total: e.target.value
+                                ? parseFloat(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          readOnly={lineItems.length > 0}
+                          className={`w-full pl-10 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${lineItems.length > 0 ? 'bg-gray-100 text-gray-800 font-bold' : ''}`}
                           placeholder="0.00"
                         />
                       </div>
