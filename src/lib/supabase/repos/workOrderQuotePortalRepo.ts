@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import { createServerClient } from '../server';
 import { VendorRow } from './vendorsRepo';
+import { ExtractedDocumentData } from '../../server/services/aiDocumentExtractionService';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -641,6 +642,13 @@ export interface SubmissionListDto {
   submitted_at: string;
   file_count: number;
   ai_summary: string | null;
+  taxes: number | null;
+  quote_number: string | null;
+  delivery_timeline: string | null;
+  warranty: string | null;
+  payment_terms: string | null;
+  compliance_status: string | null;
+  performance_rating: number | null;
 }
 
 export async function listWorkOrderVendorSubmissions(
@@ -652,7 +660,7 @@ export async function listWorkOrderVendorSubmissions(
   const { data: subs, error } = await client
     .from('work_order_vendor_submissions')
     .select(
-      'id, vendor_id, vendor_name, quoted_amount, currency, status, submitted_at, ai_summary, work_order_vendor_submission_files(count)'
+      'id, vendor_id, vendor_name, quoted_amount, currency, status, submitted_at, ai_summary, taxes, quote_number, delivery_timeline, warranty, payment_terms, compliance_status, performance_rating, work_order_vendor_submission_files(count)'
     )
     .eq('org_id', orgId)
     .eq('work_order_id', workOrderId)
@@ -670,6 +678,13 @@ export async function listWorkOrderVendorSubmissions(
     status: s.status,
     submitted_at: s.submitted_at,
     ai_summary: s.ai_summary ?? null,
+    taxes: s.taxes ?? null,
+    quote_number: s.quote_number ?? null,
+    delivery_timeline: s.delivery_timeline ?? null,
+    warranty: s.warranty ?? null,
+    payment_terms: s.payment_terms ?? null,
+    compliance_status: s.compliance_status ?? null,
+    performance_rating: s.performance_rating ?? null,
     file_count: s.work_order_vendor_submission_files
       ? s.work_order_vendor_submission_files[0].count
       : 0,
@@ -709,7 +724,8 @@ export async function getSubmissionWithFiles(submissionId: string) {
 export async function confirmSubmission(
   requestId: string,
   rawToken: string,
-  submissionId: string
+  submissionId: string,
+  extractedData?: ExtractedDocumentData
 ): Promise<{ success: boolean; vendorId: string }> {
   const req = await validateToken(requestId, rawToken);
   const client = supabase() as any;
@@ -737,10 +753,33 @@ export async function confirmSubmission(
     throw new Error('You must upload at least one document before confirming.');
   }
 
-  // Set status to submitted
+  // Set status to submitted and update with extracted data if available
+  const updatePayload: any = { status: 'submitted' };
+  
+  if (extractedData) {
+    if (extractedData.paymentTerms?.totalAmount !== undefined) {
+      updatePayload.quoted_amount = extractedData.paymentTerms.totalAmount;
+    }
+    if (extractedData.paymentTerms?.tax !== undefined) {
+      updatePayload.taxes = extractedData.paymentTerms.tax;
+    }
+    if (extractedData.contractDetails?.contractNumber) {
+      updatePayload.quote_number = extractedData.contractDetails.contractNumber;
+    }
+    if (extractedData.paymentTerms?.deliveryDate) {
+      updatePayload.delivery_timeline = extractedData.paymentTerms.deliveryDate;
+    }
+    if (extractedData.paymentTerms?.warranty) {
+      updatePayload.warranty = extractedData.paymentTerms.warranty;
+    }
+    if (extractedData.paymentTerms?.paymentTerms) {
+      updatePayload.payment_terms = extractedData.paymentTerms.paymentTerms;
+    }
+  }
+
   await client
     .from('work_order_vendor_submissions')
-    .update({ status: 'submitted' })
+    .update(updatePayload)
     .eq('id', submissionId);
 
   // Note: we'll call resolveVendorForSubmission to ensure vendor relationships are fully

@@ -191,7 +191,7 @@ export default function VendorWorkOrderPortalPage() {
   const handleConfirm = async () => {
     setConfirming(true);
     try {
-      await confirmSubmission();
+      await confirmSubmission(extractedData || undefined);
       setIsConfirmed(true);
     } catch (err) {
       console.error(err);

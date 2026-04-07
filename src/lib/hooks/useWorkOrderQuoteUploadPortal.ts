@@ -125,14 +125,15 @@ export function useWorkOrderQuoteUploadPortal(
     }
   };
 
-  const confirmSubmission = async () => {
+  const confirmSubmission = async (extractedData?: ExtractedDocumentData) => {
     if (!submissionId) throw new Error('No submission context found');
     setError(null);
     try {
       await vendorWorkOrderQuotePortalApiRepo.confirmSubmission(
         requestId,
         token,
-        submissionId
+        submissionId,
+        extractedData
       );
     } catch (err: any) {
       setError(err.message || 'Failed to confirm submission');
