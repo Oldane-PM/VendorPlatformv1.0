@@ -859,7 +859,7 @@ export async function awardSubmission({
       vendor_id: submission.vendor_id,
       work_order_id: workOrderId,
       engagement_id: engagementId,
-      awarded_submission_id: submissionId,
+      // awarded_submission_id: submissionId, // TEMPORARY FIX: Omitted because of foreign key violating vendor_submissions table.
       title: submission.vendor_name,
       amount: submission.quoted_amount,
       status: 'Active',
