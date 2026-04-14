@@ -56,11 +56,57 @@ export interface ExtractedDocumentData {
 
 // ─── Extraction ─────────────────────────────────────────────────────────────
 
+const SUPPORTED_MIME_TYPES = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+  'text/plain',
+  'text/csv',
+];
+
 export async function extractDocumentData(
   base64Data: string,
   mimeType: string,
   fileName: string
 ): Promise<ExtractedDocumentData> {
+  const emptyResult: ExtractedDocumentData = {
+    fileName,
+    extractedAt: new Date().toISOString(),
+    vendorInfo: {
+      vendorName: '',
+      vendorId: '',
+      contactPerson: '',
+      email: '',
+      phone: '',
+      address: '',
+    },
+    lineItems: [],
+    paymentTerms: {
+      paymentTerms: '',
+      deliveryDate: '',
+      warranty: '',
+      subtotal: 0,
+      tax: 0,
+      taxRate: '',
+      totalAmount: 0,
+    },
+    contractDetails: {
+      contractNumber: '',
+      contractDate: '',
+      validUntil: '',
+      approvalRequired: '',
+      department: '',
+    },
+  };
+
+  if (!SUPPORTED_MIME_TYPES.includes(mimeType)) {
+    console.warn(`[aiDocumentExtractionService] Unsupported MIME type for Gemini extraction: ${mimeType}`);
+    return emptyResult;
+  }
   const prompt = `You are an expert document data extraction system. Analyze the attached document and extract all relevant procurement/quotation data.
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no code fences, no explanation):
