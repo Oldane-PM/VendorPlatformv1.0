@@ -208,8 +208,8 @@ export function InvoiceDetailPage() {
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
                   Engagement ID
                 </p>
-                <p className="text-sm font-mono text-gray-700">
-                  {invoice.engagement_id}
+                <p className="text-sm font-medium text-gray-900">
+                  {invoice.engagement_number ?? invoice.engagement_id}
                 </p>
               </div>
             </div>

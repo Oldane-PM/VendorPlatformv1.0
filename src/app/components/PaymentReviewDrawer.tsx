@@ -23,6 +23,7 @@ interface InvoicePayment {
   invoiceNumber: string;
   vendorName: string;
   engagementId: string;
+  engagementNumber?: string;
   invoiceAmount: number;
   currency: string;
   status: 'Pending Payment' | 'Completed' | 'Draft';
@@ -335,8 +336,8 @@ export function PaymentReviewDrawer({
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                         Engagement
                       </p>
-                      <p className="text-sm text-blue-600 font-mono">
-                        {invoice.engagementId}
+                      <p className="text-sm text-blue-600 font-medium">
+                        {invoice.engagementNumber ?? invoice.engagementId}
                       </p>
                     </div>
                   </div>

@@ -10,6 +10,7 @@ export interface PaymentQueueItemDto {
   created_at: string;
   engagements?: {
     title: string;
+    engagement_number?: string | null;
     work_orders?: { title: string }[];
   } | null;
 }
