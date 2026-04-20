@@ -51,16 +51,30 @@ export default function VendorEngagementInvoicePortalPage() {
   }, [isReady, requestId, token, loadContext]);
 
   // Form State
-  const [formData, setFormData] = useState<CreateInvoiceSubmissionPayload>({
-    invoiceNumber: '',
-    invoiceDate: '',
-    dueDate: '',
-    currency: 'JMD',
-    subtotal: undefined,
-    taxTotal: undefined,
-    total: undefined,
-    message: '',
-  });
+  const [formData, setFormData] = useState<CreateInvoiceSubmissionPayload>(
+    () => {
+      let seq = 1;
+
+      // Only access localStorage on the client side
+      if (typeof window !== 'undefined') {
+        seq = parseInt(localStorage.getItem('invoiceSeq') || '1', 10);
+        localStorage.setItem('invoiceSeq', (seq + 1).toString());
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+
+      return {
+        invoiceNumber: `INV-${seq.toString().padStart(4, '0')}`,
+        invoiceDate: today,
+        dueDate: '',
+        currency: 'JMD',
+        subtotal: undefined,
+        taxTotal: undefined,
+        total: undefined,
+        message: '',
+      };
+    }
+  );
 
   const [submittingInfo, setSubmittingInfo] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -98,7 +112,12 @@ export default function VendorEngagementInvoicePortalPage() {
   const addLineItem = () => {
     setLineItems([
       ...lineItems,
-      { id: Math.random().toString(36).substring(2, 9), description: '', amount: '', taxPercentage: '' },
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        description: '',
+        amount: '',
+        taxPercentage: '',
+      },
     ]);
   };
 
@@ -106,9 +125,15 @@ export default function VendorEngagementInvoicePortalPage() {
     setLineItems(lineItems.filter((item) => item.id !== id));
   };
 
-  const updateLineItem = (id: string, field: keyof InvoiceLineItem, value: string) => {
+  const updateLineItem = (
+    id: string,
+    field: keyof InvoiceLineItem,
+    value: string
+  ) => {
     setLineItems(
-      lineItems.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      lineItems.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
     );
   };
 
@@ -292,19 +317,14 @@ export default function VendorEngagementInvoicePortalPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Invoice Number <span className="text-red-500">*</span>
+                        Invoice Number (Auto-generated)
                       </label>
                       <input
                         type="text"
                         required
+                        readOnly
                         value={formData.invoiceNumber}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            invoiceNumber: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 text-gray-500 font-medium cursor-not-allowed"
                       />
                     </div>
                     <div>
@@ -375,37 +395,64 @@ export default function VendorEngagementInvoicePortalPage() {
                     {lineItems.length > 0 && (
                       <div className="space-y-3 mb-4">
                         {lineItems.map((item) => (
-                          <div key={item.id} className="flex flex-wrap sm:flex-nowrap gap-2 items-end bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <div
+                            key={item.id}
+                            className="flex flex-wrap sm:flex-nowrap gap-2 items-end bg-gray-50 p-3 rounded-lg border border-gray-200"
+                          >
                             <div className="flex-1 min-w-[150px]">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Description
+                              </label>
                               <input
                                 type="text"
                                 value={item.description}
-                                onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                                onChange={(e) =>
+                                  updateLineItem(
+                                    item.id,
+                                    'description',
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Item description"
                               />
                             </div>
                             <div className="w-24 flex-shrink-0">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Amount
+                              </label>
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
                                 value={item.amount}
-                                onChange={(e) => updateLineItem(item.id, 'amount', e.target.value)}
+                                onChange={(e) =>
+                                  updateLineItem(
+                                    item.id,
+                                    'amount',
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="0.00"
                               />
                             </div>
                             <div className="w-20 flex-shrink-0">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Tax %</label>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Tax %
+                              </label>
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
                                 value={item.taxPercentage}
-                                onChange={(e) => updateLineItem(item.id, 'taxPercentage', e.target.value)}
+                                onChange={(e) =>
+                                  updateLineItem(
+                                    item.id,
+                                    'taxPercentage',
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="0"
                               />
@@ -426,17 +473,23 @@ export default function VendorEngagementInvoicePortalPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Subtotal {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
+                        Subtotal{' '}
+                        {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <CreditCard className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
-                          type={lineItems.length > 0 ? "text" : "number"}
-                          step={lineItems.length > 0 ? undefined : "0.01"}
-                          min={lineItems.length > 0 ? undefined : "0"}
-                          value={lineItems.length > 0 && formData.subtotal !== undefined ? formatCurrency(formData.subtotal) : (formData.subtotal || '')}
+                          type={lineItems.length > 0 ? 'text' : 'number'}
+                          step={lineItems.length > 0 ? undefined : '0.01'}
+                          min={lineItems.length > 0 ? undefined : '0'}
+                          value={
+                            lineItems.length > 0 &&
+                            formData.subtotal !== undefined
+                              ? formatCurrency(formData.subtotal)
+                              : formData.subtotal || ''
+                          }
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -453,17 +506,23 @@ export default function VendorEngagementInvoicePortalPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Total Tax {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
+                        Total Tax{' '}
+                        {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <CreditCard className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
-                          type={lineItems.length > 0 ? "text" : "number"}
-                          step={lineItems.length > 0 ? undefined : "0.01"}
-                          min={lineItems.length > 0 ? undefined : "0"}
-                          value={lineItems.length > 0 && formData.taxTotal !== undefined ? formatCurrency(formData.taxTotal) : (formData.taxTotal || '')}
+                          type={lineItems.length > 0 ? 'text' : 'number'}
+                          step={lineItems.length > 0 ? undefined : '0.01'}
+                          min={lineItems.length > 0 ? undefined : '0'}
+                          value={
+                            lineItems.length > 0 &&
+                            formData.taxTotal !== undefined
+                              ? formatCurrency(formData.taxTotal)
+                              : formData.taxTotal || ''
+                          }
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -480,17 +539,22 @@ export default function VendorEngagementInvoicePortalPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Net Total Amount {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
+                        Net Total Amount{' '}
+                        {lineItems.length > 0 ? '(Auto)' : '(Optional)'}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <CreditCard className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
-                          type={lineItems.length > 0 ? "text" : "number"}
-                          step={lineItems.length > 0 ? undefined : "0.01"}
-                          min={lineItems.length > 0 ? undefined : "0"}
-                          value={lineItems.length > 0 && formData.total !== undefined ? formatCurrency(formData.total) : (formData.total || '')}
+                          type={lineItems.length > 0 ? 'text' : 'number'}
+                          step={lineItems.length > 0 ? undefined : '0.01'}
+                          min={lineItems.length > 0 ? undefined : '0'}
+                          value={
+                            lineItems.length > 0 && formData.total !== undefined
+                              ? formatCurrency(formData.total)
+                              : formData.total || ''
+                          }
                           onChange={(e) =>
                             setFormData({
                               ...formData,
