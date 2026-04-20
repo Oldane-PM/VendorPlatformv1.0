@@ -20,6 +20,7 @@ export interface InvoiceRow {
   // joined fields
   vendor_name?: string;
   engagement_title?: string;
+  engagement_number?: string;
 }
 
 export interface InvoiceFileRow {
@@ -64,7 +65,7 @@ export async function listInvoices(): Promise<InvoiceRow[]> {
       `
       *,
       vendors:vendor_id ( vendor_name ),
-      engagements:engagement_id ( title )
+      engagements:engagement_id ( title, engagement_number )
     `
     )
     .order('submitted_at', { ascending: false });
@@ -87,6 +88,7 @@ export async function listInvoices(): Promise<InvoiceRow[]> {
     created_by: null,
     vendor_name: row.vendors?.vendor_name ?? null,
     engagement_title: row.engagements?.title ?? null,
+    engagement_number: row.engagements?.engagement_number ? `ENG-${String(row.engagements.engagement_number).padStart(4, '0')}` : null,
   })) as InvoiceRow[];
 }
 
@@ -105,7 +107,7 @@ export async function getInvoiceById(
       `
       *,
       vendors:vendor_id ( vendor_name ),
-      engagements:engagement_id ( title )
+      engagements:engagement_id ( title, engagement_number )
     `
     )
     .eq('id', invoiceId)
@@ -144,6 +146,7 @@ export async function getInvoiceById(
     created_by: null,
     vendor_name: row.vendors?.vendor_name ?? null,
     engagement_title: row.engagements?.title ?? null,
+    engagement_number: row.engagements?.engagement_number ? `ENG-${String(row.engagements.engagement_number).padStart(4, '0')}` : null,
     files: (files ?? []) as InvoiceFileRow[],
   } as InvoiceDetail;
 }

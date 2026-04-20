@@ -13,6 +13,7 @@ export interface PaymentProcessingItemRow {
   created_at: string;
   engagements?: {
     title: string;
+    engagement_number?: string | null;
     work_orders?: { title: string }[];
   } | null;
 }
@@ -63,14 +64,14 @@ export async function listPaymentQueue(): Promise<{
   }
 
   const [engRes, woRes] = await Promise.all([
-    sb.from('engagements').select('id, title').in('id', engagementIds),
+    sb.from('engagements').select('id, title, engagement_number').in('id', engagementIds),
     sb
       .from('work_orders')
       .select('title, engagement_id')
       .in('engagement_id', engagementIds),
   ]);
 
-  const engMap = new Map((engRes.data || []).map((e: any) => [e.id, e.title]));
+  const engMap = new Map((engRes.data || []).map((e: any) => [e.id, { title: e.title, engagement_number: e.engagement_number }]));
 
   // Group work orders by engagement_id taking just the first one for the UI format
   const woMap = new Map();
@@ -81,10 +82,12 @@ export async function listPaymentQueue(): Promise<{
   }
 
   const enrichedInvoices = invoices.map((inv: any) => {
+    const engData = engMap.get(inv.engagement_id) || { title: 'Unknown Engagement', engagement_number: null };
     return {
       ...inv,
       engagements: {
-        title: engMap.get(inv.engagement_id) || 'Unknown Engagement',
+        title: engData.title,
+        engagement_number: engData.engagement_number,
         work_orders: [{ title: woMap.get(inv.engagement_id) || '—' }],
       },
     };
@@ -116,12 +119,13 @@ export async function getPaymentDetail(id: string): Promise<{
 
   // Fetch engagement and work order titles separately
   let engTitle = 'Unknown Engagement';
+  let engNum = null;
   let woTitle = '—';
 
   const [engRes, woRes] = await Promise.all([
     sb
       .from('engagements')
-      .select('title')
+      .select('title, engagement_number')
       .eq('id', invoice.engagement_id)
       .single(),
     sb
@@ -131,13 +135,17 @@ export async function getPaymentDetail(id: string): Promise<{
       .limit(1),
   ]);
 
-  if (engRes.data) engTitle = engRes.data.title;
+  if (engRes.data) {
+    engTitle = engRes.data.title;
+    engNum = engRes.data.engagement_number;
+  }
   if (woRes.data && woRes.data.length > 0) woTitle = woRes.data[0].title;
 
   let detail: PaymentProcessingDetailRow = {
     ...invoice,
     engagements: {
       title: engTitle,
+      engagement_number: engNum,
       work_orders: [{ title: woTitle }],
     },
   };

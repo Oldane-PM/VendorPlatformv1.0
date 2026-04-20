@@ -25,6 +25,7 @@ export interface InvoiceDetailData {
   created_by: string | null;
   vendor_name: string | null;
   engagement_title: string | null;
+  engagement_number: string | null;
   files: InvoiceFile[];
 }
 

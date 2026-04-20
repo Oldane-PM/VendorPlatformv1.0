@@ -22,6 +22,7 @@ interface InvoicePayment {
   invoiceNumber: string;
   vendorName: string;
   engagementId: string;
+  engagementNumber?: string;
   engagementTitle: string;
   workorderTitle: string;
   invoiceAmount: number;
@@ -70,6 +71,7 @@ export function PaymentProcessingPage() {
         invoiceNumber: item.invoice_number,
         vendorName: item.vendor_name,
         engagementId: item.engagement_id,
+        engagementNumber: item.engagements?.engagement_number ? `ENG-${String(item.engagements.engagement_number).padStart(4, '0')}` : undefined,
         engagementTitle: item.engagements?.title || 'Unknown Engagement',
         workorderTitle: item.engagements?.work_orders?.[0]?.title || '—',
         invoiceAmount: item.amount,
